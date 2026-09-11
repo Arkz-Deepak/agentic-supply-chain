@@ -4,8 +4,8 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 export default function ParallaxCard({
   children,
   className = '',
-  maxTilt = 6,
-  glowColor = 'rgba(0, 240, 255, 0.15)',
+  maxTilt = 4,
+  glowColor = 'rgba(14, 165, 233, 0.12)',
   ...props
 }) {
   const cardRef = useRef(null);
@@ -14,7 +14,6 @@ export default function ParallaxCard({
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  // Smooth springs for high-end organic feel
   const springConfig = { damping: 20, stiffness: 200 };
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [maxTilt, -maxTilt]), springConfig);
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-maxTilt, maxTilt]), springConfig);
@@ -27,7 +26,6 @@ export default function ParallaxCard({
     const clientX = e.clientX - rect.left;
     const clientY = e.clientY - rect.top;
 
-    // Convert to relative coordinates (-0.5 to 0.5)
     mouseX.set(clientX / width - 0.5);
     mouseY.set(clientY / height - 0.5);
   };
@@ -56,9 +54,9 @@ export default function ParallaxCard({
       {/* Dynamic glossy specular reflection layer */}
       {isHovered && (
         <div
-          className="pointer-events-none absolute -inset-px rounded-2xl opacity-60 transition duration-300"
+          className="pointer-events-none absolute -inset-px rounded-2xl opacity-70 transition duration-300"
           style={{
-            background: `radial-gradient(400px circle at ${(mouseX.get() + 0.5) * 100}% ${(mouseY.get() + 0.5) * 100}%, ${glowColor}, transparent 70%)`,
+            background: `radial-gradient(450px circle at ${(mouseX.get() + 0.5) * 100}% ${(mouseY.get() + 0.5) * 100}%, ${glowColor}, transparent 70%)`,
           }}
         />
       )}

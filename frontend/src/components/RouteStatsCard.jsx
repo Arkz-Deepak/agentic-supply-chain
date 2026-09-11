@@ -18,21 +18,21 @@ export default function RouteStatsCard({
   };
 
   return (
-    <ParallaxCard className="p-3.5" maxTilt={4}>
-      <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2.5">
+    <ParallaxCard className="p-3.5" maxTilt={3}>
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-cyber-cyan" />
-          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
+          <Activity className="h-4 w-4 text-sky-600" />
+          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-800">
             Odisha Corridor Telemetry &bull; IIT Bhubaneswar
           </h3>
         </div>
         <span
-          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+          className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border shadow-sm ${
             isBlocked
-              ? 'bg-rose-950/80 text-rose-400 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.4)]'
+              ? 'bg-rose-50 text-rose-700 border-rose-300'
               : isRerouted
-              ? 'bg-emerald-950/80 text-emerald-400 border-emerald-500/50'
-              : 'bg-cyan-950/80 text-cyber-cyan border-cyan-500/50'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+              : 'bg-sky-50 text-sky-700 border-sky-300'
           }`}
         >
           {isBlocked ? 'NH-16 HALTED' : isRerouted ? 'DAYA BYPASS ACTIVE' : 'CORRIDOR CLEAR'}
@@ -41,12 +41,12 @@ export default function RouteStatsCard({
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono">
         {/* Active Corridor */}
-        <div className="rounded-xl bg-dark-900/80 p-2.5 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] mb-0.5">
-            <Route className="h-3 w-3 text-cyber-cyan" />
+        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mb-0.5">
+            <Route className="h-3 w-3 text-sky-600" />
             <span>CORRIDOR</span>
           </div>
-          <div className="text-xs font-bold text-white truncate">
+          <div className="text-xs font-bold text-slate-900 truncate">
             {isRerouted ? 'route_101_express' : activeRouteName}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5">
@@ -55,12 +55,12 @@ export default function RouteStatsCard({
         </div>
 
         {/* ETA */}
-        <div className="rounded-xl bg-dark-900/80 p-2.5 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] mb-0.5">
-            <Clock className="h-3 w-3 text-cyan-400" />
+        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mb-0.5">
+            <Clock className="h-3 w-3 text-sky-600" />
             <span>EST. TIME</span>
           </div>
-          <div className="text-xs font-bold text-white">
+          <div className="text-xs font-bold text-slate-900">
             {isRerouted ? formatTime(etaMinutes + 7) : isBlocked ? 'HALTED' : formatTime(etaMinutes)}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5">
@@ -69,12 +69,12 @@ export default function RouteStatsCard({
         </div>
 
         {/* Distance */}
-        <div className="rounded-xl bg-dark-900/80 p-2.5 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] mb-0.5">
-            <Activity className="h-3 w-3 text-cyber-purple" />
+        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mb-0.5">
+            <Activity className="h-3 w-3 text-purple-600" />
             <span>DISTANCE</span>
           </div>
-          <div className="text-xs font-bold text-white">
+          <div className="text-xs font-bold text-slate-900">
             {isRerouted ? `${distanceKm + 4} km` : `${distanceKm} km`}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5">
@@ -83,18 +83,18 @@ export default function RouteStatsCard({
         </div>
 
         {/* Risk / Weather Level */}
-        <div className="rounded-xl bg-dark-900/80 p-2.5 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] mb-0.5">
+        <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mb-0.5">
             <ShieldAlert
               className={`h-3 w-3 ${
-                isBlocked ? 'text-rose-500' : isRerouted ? 'text-emerald-400' : 'text-slate-400'
+                isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-slate-500'
               }`}
             />
             <span>RISK INDEX</span>
           </div>
           <div
             className={`text-xs font-bold ${
-              isBlocked ? 'text-rose-400' : isRerouted ? 'text-emerald-400' : 'text-cyan-300'
+              isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-sky-700'
             }`}
           >
             {isBlocked ? '99% BLOCKED' : isRerouted ? '3.5% SAFE' : '10.2% NOMINAL'}

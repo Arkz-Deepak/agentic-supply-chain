@@ -4,94 +4,97 @@
 
 @layer base {
   * {
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(226, 232, 240, 0.8);
   }
   body {
-    background-color: #06080F;
-    color: #E2E8F0;
+    background-color: #F8FAFC;
+    color: #0F172A;
     overflow-x: hidden;
     font-family: 'Inter', sans-serif;
   }
 }
 
-/* Custom Scrollbars */
+/* Custom Scrollbars in Sky Blue */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(11, 15, 25, 0.7);
+  background: rgba(241, 245, 249, 0.8);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.2);
-  border-radius: 3px;
+  background: rgba(14, 165, 233, 0.4);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.5);
+  background: rgba(14, 165, 233, 0.7);
 }
 
-/* Glassmorphism Classes */
+/* Premium White & Sky-Blue Glassmorphism Classes */
 .glass-panel {
-  background: rgba(11, 15, 25, 0.75);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 240, 255, 0.12);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  box-shadow: 0 10px 32px 0 rgba(14, 165, 233, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .glass-panel-danger {
-  background: rgba(35, 10, 20, 0.75);
+  background: rgba(255, 241, 242, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.2);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  box-shadow: 0 10px 32px 0 rgba(244, 63, 94, 0.12);
 }
 
 .glass-panel-warning {
-  background: rgba(30, 20, 10, 0.75);
+  background: rgba(254, 252, 232, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 10px 32px 0 rgba(245, 158, 11, 0.12);
 }
 
-/* Cyber Glow Borders */
-.cyber-glow {
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+.glass-panel-success {
+  background: rgba(240, 253, 244, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 10px 32px 0 rgba(16, 185, 129, 0.12);
 }
 
-.cyber-glow-rose {
-  box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+/* Sky-Blue Glow Highlights */
+.sky-glow {
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.28);
 }
 
-/* Custom Leaflet Map styling for Dark Theme */
+.sky-glow-lg {
+  box-shadow: 0 0 35px rgba(14, 165, 233, 0.4);
+}
+
+/* Leaflet Map styling for Google Maps Light Mode */
 .leaflet-container {
-  background-color: #06080F !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  background-color: #E5E7EB !important;
+  font-family: 'Inter', sans-serif !important;
   z-index: 10;
   width: 100%;
   height: 100%;
 }
 
-/* Dark mode invert filter for OpenStreetMap or standard tiles */
-.dark-tiles {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
-}
-
-/* Leaflet control styling */
 .leaflet-bar {
-  border: 1px solid rgba(0, 240, 255, 0.2) !important;
-  background: rgba(11, 15, 25, 0.85) !important;
+  border: 1px solid rgba(14, 165, 233, 0.3) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 }
 .leaflet-bar a {
   background-color: transparent !important;
-  color: #00F0FF !important;
-  border-bottom: 1px solid rgba(0, 240, 255, 0.1) !important;
+  color: #0284C7 !important;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.15) !important;
 }
 .leaflet-bar a:hover {
-  background-color: rgba(0, 240, 255, 0.15) !important;
-  color: #FFFFFF !important;
+  background-color: rgba(240, 249, 255, 1) !important;
+  color: #0369A1 !important;
 }
 
 /* Pulsing radar effect */
@@ -102,11 +105,26 @@
   }
   70% {
     transform: scale(1.4);
-    box-shadow: 0 0 0 20px rgba(244, 63, 94, 0);
+    box-shadow: 0 0 0 16px rgba(244, 63, 94, 0);
   }
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+@keyframes sky-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.6);
+  }
+  70% {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 16px rgba(14, 165, 233, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
   }
 }
 

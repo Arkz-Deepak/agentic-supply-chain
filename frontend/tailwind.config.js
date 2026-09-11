@@ -8,20 +8,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: {
-          950: '#06080F',
-          900: '#0B0F19',
-          850: '#0F1524',
-          800: '#141C30',
-          700: '#1F2942',
+        sky: {
+          50: '#F0F9FF',
+          100: '#E0F2FE',
+          200: '#BAE6FD',
+          300: '#7DD3FC',
+          400: '#38BDF8',
+          500: '#0EA5E9',
+          600: '#0284C7',
+          700: '#0369A1',
+          800: '#075985',
+          900: '#0C4A6E',
         },
         cyber: {
-          cyan: '#00F0FF',
-          blue: '#0072FF',
-          emerald: '#10B981',
-          amber: '#F59E0B',
-          rose: '#F43F5E',
-          purple: '#A855F7',
+          cyan: '#0284C7',
+          blue: '#2563EB',
+          emerald: '#059669',
+          amber: '#D97706',
+          rose: '#E11D48',
+          purple: '#7C3AED',
         }
       },
       fontFamily: {
@@ -32,21 +37,7 @@ export default {
       animation: {
         'pulse-fast': 'pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
-        'scanline': 'scanline 8s linear infinite',
       },
-      keyframes: {
-        glow: {
-          '0%': { boxShadow: '0 0 5px rgba(0, 240, 255, 0.2), inset 0 0 5px rgba(0, 240, 255, 0.1)' },
-          '100%': { boxShadow: '0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.3)' },
-        },
-        scanline: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(1000%)' },
-        }
-      },
-      backdropBlur: {
-        xs: '2px',
-      }
     },
   },
   plugins: [],

@@ -8,13 +8,10 @@ import {
   Sliders,
   MapPin,
   Mic,
-  Smartphone,
-  CheckCircle2,
 } from 'lucide-react';
 import { PRESET_HUBS } from '../data/mockRoutes';
 import ParallaxCard from './ParallaxCard';
-import { playMechanicalClick, playDispatchAlert } from '../utils/soundEffects';
-import { apiClient } from '../api/client';
+import { playMechanicalClick } from '../utils/soundEffects';
 import VoiceReportModal from './VoiceReportModal';
 
 export default function ControlPanel({
@@ -30,7 +27,6 @@ export default function ControlPanel({
   onVoiceReportSubmitted,
 }) {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
-  const [phoneReportStatus, setPhoneReportStatus] = useState(null);
 
   const handlePresetClick = (hubA, hubB) => {
     playMechanicalClick();
@@ -53,27 +49,27 @@ export default function ControlPanel({
 
   return (
     <>
-      <ParallaxCard className="p-4" maxTilt={4}>
+      <ParallaxCard className="p-4" maxTilt={3}>
         <div className="flex flex-col space-y-3.5">
           {/* Section Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <div className="flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-cyber-cyan" />
-              <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
+              <Sliders className="h-4 w-4 text-sky-600" />
+              <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-800">
                 Corridor Controls &bull; IIT Bhubaneswar
               </h2>
             </div>
-            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/70 px-2 py-0.5 rounded border border-cyan-500/30">
+            <span className="text-[10px] font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 shadow-sm">
               AHNDKA Command
             </span>
           </div>
 
           {/* Preset Hub Selectors */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-cyber-cyan" /> Select Regional Freight Corridor:
+            <label className="text-[11px] font-sans font-semibold text-slate-600 flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-sky-600" /> Select Regional Freight Corridor:
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 onClick={() =>
                   handlePresetClick(
@@ -81,10 +77,10 @@ export default function ControlPanel({
                     PRESET_HUBS[1]  // IIT Bhubaneswar
                   )
                 }
-                className="px-2.5 py-1.5 rounded-lg bg-dark-900 border border-slate-800 text-[11px] font-mono text-slate-300 hover:border-cyan-500/50 hover:text-white transition text-left flex items-center justify-between"
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-sans text-slate-800 hover:border-sky-400 hover:bg-sky-50/60 transition text-left flex items-center justify-between shadow-sm"
               >
-                <span>🚚 Bhubaneswar &rarr; IIT BBS</span>
-                <span className="text-[10px] text-cyan-400 font-bold">NH-16</span>
+                <span className="font-semibold">🚚 Bhubaneswar &rarr; IIT BBS</span>
+                <span className="text-[10px] text-sky-600 font-bold font-mono">NH-16</span>
               </button>
               <button
                 onClick={() =>
@@ -93,16 +89,16 @@ export default function ControlPanel({
                     PRESET_HUBS[1]  // IIT Bhubaneswar
                   )
                 }
-                className="px-2.5 py-1.5 rounded-lg bg-dark-900 border border-slate-800 text-[11px] font-mono text-slate-300 hover:border-cyan-500/50 hover:text-white transition text-left flex items-center justify-between"
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-sans text-slate-800 hover:border-sky-400 hover:bg-sky-50/60 transition text-left flex items-center justify-between shadow-sm"
               >
-                <span>⚓ Paradip Port &rarr; IIT BBS</span>
-                <span className="text-[10px] text-purple-400 font-bold">Intermodal</span>
+                <span className="font-semibold">⚓ Paradip Port &rarr; IIT BBS</span>
+                <span className="text-[10px] text-purple-600 font-bold font-mono">Port Link</span>
               </button>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             {/* Phase 1 Button */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -112,7 +108,7 @@ export default function ControlPanel({
                 playMechanicalClick();
                 onComputeRoute();
               }}
-              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyber-cyan p-2.5 text-xs font-mono font-bold text-black shadow-[0_0_20px_rgba(0,240,255,0.4)] transition hover:brightness-110 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 p-2.5 text-xs font-sans font-bold text-white shadow-md hover:brightness-105 transition disabled:opacity-50"
             >
               <Navigation2 className="h-4 w-4 fill-current" />
               <span>Phase 1: Calculate Route</span>
@@ -124,10 +120,10 @@ export default function ControlPanel({
               whileTap={{ scale: 0.98 }}
               disabled={isProcessing || disruptionState === 'detected'}
               onClick={handleOpenVoiceModal}
-              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-mono font-bold transition shadow-[0_0_20px_rgba(244,63,94,0.3)] disabled:opacity-50 ${
+              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-sans font-bold transition shadow-md disabled:opacity-50 ${
                 disruptionState === 'detected'
-                  ? 'bg-rose-950/80 text-rose-300 border border-rose-600'
-                  : 'bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white hover:brightness-110'
+                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                  : 'bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white hover:brightness-105'
               }`}
             >
               <Mic className="h-4 w-4 animate-pulse" />
@@ -147,7 +143,7 @@ export default function ControlPanel({
                 playMechanicalClick();
                 onAutonomousReroute();
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 p-3 text-xs font-mono font-bold text-black shadow-[0_0_25px_rgba(16,185,129,0.5)] transition hover:brightness-110"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-3 text-xs font-sans font-bold text-white shadow-lg transition hover:brightness-105"
             >
               <Zap className="h-4 w-4 fill-current" />
               <span>AUTONOMOUS AGENT REROUTE & EMAIL STAKEHOLDERS</span>
@@ -161,7 +157,7 @@ export default function ControlPanel({
                 playMechanicalClick();
                 onReset();
               }}
-              className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 hover:text-slate-200 transition"
+              className="flex items-center gap-1.5 text-xs font-mono text-slate-500 hover:text-slate-800 transition"
             >
               <RotateCcw className="h-3 w-3" /> Reset Corridor Simulation
             </button>
