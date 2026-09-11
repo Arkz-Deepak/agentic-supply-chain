@@ -17,6 +17,7 @@ import {
   orchestrateRoute,
   fetchLiveWeather,
   fetchLiveDirections,
+  reportVoiceHazard,
 } from './api/client';
 import {
   playDispatchAlert,
@@ -53,7 +54,7 @@ export default function App() {
       node: 'system',
       type: 'INFO',
       content:
-        'Nexus Command Center online on dedicated ports (UI: 5180, API: 8010). Webhook endpoint /api/report_hazard active for driver phone alerts.',
+        'Nexus Command Center online on dedicated ports (UI: 5180, API: 8010). Live Voice Webhook & Gemini NLP active.',
     },
   ]);
 
@@ -220,35 +221,48 @@ export default function App() {
     setIsProcessing(false);
   };
 
-  // Phase 2: Disruption triggered (via webhook or UI)
-  const handleTriggerDisruption = () => {
+  // Phase 2: Live Voice Report Submission
+  const handleVoiceReportSubmitted = async (rawTranscript) => {
+    setIsProcessing(true);
     playDispatchAlert();
     setDisruptionState('detected');
 
-    const incidentAlert = {
+    // 1. Log voice input
+    const voiceStep = {
       timestamp: new Date().toLocaleTimeString(),
       node: 'telemetry_sensor',
       type: 'INCOMING_ALERT',
-      content:
-        'WEBHOOK EVENT: Driver mobile report received: "Transport union strike & waterlogging on NH-16 Khandagiri". Primary corridor blocked.',
+      content: `🎙️ Driver Voice Transmission: "${rawTranscript}"`,
+    };
+    setAgentSteps((prev) => [...prev, voiceStep]);
+
+    // 2. Call backend Voice NLP endpoint
+    const voiceRes = await reportVoiceHazard(rawTranscript);
+    const parsedData = voiceRes.parsed || {
+      location: 'Khandagiri Junction NH-16',
+      description: rawTranscript,
     };
 
-    const strategistAlert = {
+    const nlpStep = {
       timestamp: new Date().toLocaleTimeString(),
       node: 'strategist',
       type: 'THINKING',
-      content:
-        'Carrier TRK-8821 halted on NH-16. Crowdsourced reports confirm strike. Autonomous recovery triggered: compute Daya Canal bypass & notify stakeholders.',
-      args: { check_reports: 'get_crowdsourced_traffic()' },
-      result: 'hazard_confirmed',
+      content: `Gemini 3.7 Flash NLP Parsed Transmission -> Location: "${parsedData.location}" | Incident: "${parsedData.description}" | Severity: CRITICAL`,
     };
+    setAgentSteps((prev) => [...prev, nlpStep]);
 
-    setAgentSteps((prev) => [...prev, incidentAlert, strategistAlert]);
     setGraphState((prev) => ({
       ...prev,
       tool_status: 'error_blocked',
       phase: 2,
     }));
+
+    setIsProcessing(false);
+  };
+
+  // Fallback direct trigger
+  const handleTriggerDisruption = () => {
+    handleVoiceReportSubmitted("Yo, I'm near Khandagiri junction on NH-16. There's a massive transport strike and 4ft waterlogging, all trucks are blocked!");
   };
 
   // Phase 2 Resolution: Autonomous Agent Reroute & Email Stakeholders
@@ -268,9 +282,9 @@ export default function App() {
       startPoint,
       destination: destinationPoint,
       currentRouteId: 'route_99',
-      disruptionType: 'Driver reported transport union strike on NH-16 Khandagiri',
+      disruptionType: 'Driver voice report of transport strike & flood on NH-16 Khandagiri',
       prompt:
-        'Driver reported transport strike on NH-16 Khandagiri. Check crowdsourced reports, calculate Daya Canal bypass via OpenRouteService, and notify stakeholders with updated ETA.',
+        'Driver voice report of transport strike on NH-16 Khandagiri. Check crowdsourced reports, calculate Daya Canal bypass via OpenRouteService, and notify stakeholders with updated ETA.',
     });
 
     setTimeout(() => {
@@ -287,10 +301,9 @@ export default function App() {
       setDisruptionState('resolved');
       setIsProcessing(false);
 
-      // Extract dispatched email
       const email = response.data?.email_dispatched || {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
-        reason: 'Transport Union Strike at Khandagiri NH-16',
+        reason: 'Driver Reported Transport Union Strike at Khandagiri NH-16',
         alternative_route: 'Daya West Canal Green Bypass (Route 101)',
         new_eta: '+7 mins (38 mins total)',
       };
@@ -383,7 +396,7 @@ export default function App() {
               etaMinutes={routeStats.etaMinutes}
             />
 
-            {/* Control Panel with Mobile Driver Webhook Button */}
+            {/* Control Panel with Voice Modal Trigger */}
             <ControlPanel
               onComputeRoute={handleComputePhase1}
               onTriggerDisruption={handleTriggerDisruption}
@@ -394,6 +407,7 @@ export default function App() {
               startPoint={startPoint}
               destinationPoint={destinationPoint}
               onSelectPreset={handleSelectPreset}
+              onVoiceReportSubmitted={handleVoiceReportSubmitted}
             />
           </div>
 

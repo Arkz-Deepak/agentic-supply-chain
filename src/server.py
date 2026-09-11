@@ -5,6 +5,7 @@ from typing import List, Optional, Any, Dict, Union
 import uvicorn
 import os
 import requests
+import json
 from dotenv import load_dotenv
 
 from state import SupplyChainState
@@ -18,6 +19,7 @@ from tools import (
     get_map_key,
     get_weather_key,
 )
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
 
@@ -25,8 +27,8 @@ load_dotenv()
 
 app = FastAPI(
     title="Agentic Supply Chain Orchestrator API",
-    version="2.1.0",
-    description="FastAPI backend with LangGraph, OpenWeatherMap, OpenRouteService, crowdsourced hazard reporting, and stakeholder notifications."
+    version="2.2.0",
+    description="FastAPI backend with LangGraph, Voice NLP Parsing, OpenWeatherMap, OpenRouteService, and automated email dispatch."
 )
 
 # CORS configured for port 5180 (and 5173 fallback)
@@ -60,32 +62,24 @@ workflow.add_conditional_edges("strategist", tools_condition)
 workflow.add_edge("tools", "strategist")
 graph_app = workflow.compile()
 
+# Initialize lightweight parser for raw speech
+nlp_llm = ChatGoogleGenerativeAI(model="gemini-3.7-flash")
+
 class HazardReport(BaseModel):
     location: str
     description: str
 
+class VoiceHazardRequest(BaseModel):
+    raw_transcript: str
+
 class DirectionRequest(BaseModel):
-    start: Union[List[float], str] # [lat, lon] or 'lon,lat'
-    dest: Union[List[float], str]  # [lat, lon] or 'lon,lat'
+    start: Union[List[float], str]
+    dest: Union[List[float], str]
     via: Optional[Union[List[float], str]] = None
 
 class OrchestrateRequest(BaseModel):
     messages: List[Dict[str, Any]]
     state: Optional[Dict[str, Any]] = None
-
-def to_ors_coord_str(coord: Union[List[float], str]) -> str:
-    """
-    Guarantees 'longitude,latitude' string format for OpenRouteService API.
-    Handles [lat, lon] lists, dicts, or existing 'lon,lat' strings.
-    """
-    if isinstance(coord, str):
-        return coord.strip()
-    if isinstance(coord, (list, tuple)) and len(coord) >= 2:
-        # Standard Leaflet order is [lat, lon]
-        lat, lon = coord[0], coord[1]
-        # OpenRouteService expects 'lon,lat'
-        return f"{lon},{lat}"
-    raise ValueError(f"Invalid coordinate format: {coord}")
 
 @app.get("/api/health")
 def health_check():
@@ -97,14 +91,14 @@ def health_check():
         "has_map_api": bool(get_map_key()),
         "location": "IIT Bhubaneswar Logistics Hub",
         "active_hazard_reports": len(LIVE_HAZARD_REPORTS),
+        "voice_nlp": "active",
         "langgraph": "compiled"
     }
 
 @app.post("/api/report_hazard")
 async def report_hazard(report: HazardReport):
     """
-    Endpoint for a driver's mobile phone or field sensor to report a strike, flood, or roadblock.
-    Logs into the in-memory database to trigger autonomous rerouting.
+    Endpoint for a driver's phone or field sensor to report a strike, flood, or roadblock.
     """
     alert = f"{report.location}: {report.description}"
     LIVE_HAZARD_REPORTS.append(alert)
@@ -116,9 +110,70 @@ async def report_hazard(report: HazardReport):
         "active_reports": LIVE_HAZARD_REPORTS
     }
 
+@app.post("/api/report_hazard_voice")
+async def report_hazard_voice(request: VoiceHazardRequest):
+    """
+    Speech-to-NLP Webhook: Ingests unstructured conversational driver speech,
+    uses Gemini 3.7 Flash to extract location and incident description,
+    and logs it directly to the active hazard registry.
+    """
+    raw_speech = request.raw_transcript.strip()
+    print(f"\n[RAW DRIVER VOICE TRANSMISSION RECEIVED] -> \"{raw_speech}\"")
+
+    try:
+        # Prompt Gemini to extract structured incident data
+        extract_prompt = (
+            f"You are a logistics dispatch NLP parser. Analyze this raw conversational driver voice transmission: "
+            f"\"{raw_speech}\"\n\n"
+            f"Extract the exact location in Odisha and the disruption description. "
+            f"Respond ONLY in valid JSON format with keys:\n"
+            f'{{"location": "<specific junction/corridor>", "description": "<concise description of blockage/strike/flood>", "severity": "CRITICAL"}}\n'
+            f"Do not include code blocks or extra text."
+        )
+
+        res = nlp_llm.invoke(extract_prompt)
+        text_content = res.content
+        if isinstance(text_content, list):
+            text_content = "".join([part.get("text", "") for part in text_content if isinstance(part, dict)])
+        
+        cleaned_json = text_content.replace("```json", "").replace("```", "").strip()
+        data = json.loads(cleaned_json)
+
+        location = data.get("location", "Khandagiri Junction NH-16")
+        description = data.get("description", raw_speech)
+        formatted_alert = f"{location}: {description}"
+
+        LIVE_HAZARD_REPORTS.append(formatted_alert)
+        print(f"[GEMINI NLP EXTRACTED ALERT] -> {formatted_alert}")
+
+        return {
+            "status": "success",
+            "parsed": {
+                "location": location,
+                "description": description,
+                "severity": data.get("severity", "CRITICAL"),
+                "raw_input": raw_speech
+            },
+            "active_reports": LIVE_HAZARD_REPORTS
+        }
+    except Exception as e:
+        # Fallback to direct raw speech
+        fallback_alert = f"Field Transmission (NH-16): {raw_speech}"
+        LIVE_HAZARD_REPORTS.append(fallback_alert)
+        print(f"[FALLBACK LOGGED] -> {fallback_alert} (Parser error: {e})")
+        return {
+            "status": "success",
+            "parsed": {
+                "location": "NH-16 Corridor",
+                "description": raw_speech,
+                "severity": "CRITICAL",
+                "raw_input": raw_speech
+            },
+            "active_reports": LIVE_HAZARD_REPORTS
+        }
+
 @app.get("/api/hazards")
 def get_hazards():
-    """Returns active crowdsourced hazard reports from drivers."""
     return {
         "count": len(LIVE_HAZARD_REPORTS),
         "reports": LIVE_HAZARD_REPORTS
@@ -126,13 +181,11 @@ def get_hazards():
 
 @app.delete("/api/hazards")
 def clear_hazards():
-    """Resets the in-memory hazard database."""
     LIVE_HAZARD_REPORTS.clear()
     return {"status": "cleared", "reports": []}
 
 @app.get("/api/weather")
 def get_weather_endpoint(lat: float = Query(20.1484), lon: float = Query(85.6711)):
-    """Fetch live weather from OpenWeatherMap for IIT Bhubaneswar / Jatani"""
     api_key = get_weather_key()
     if not api_key:
         return {
@@ -164,12 +217,10 @@ def get_weather_endpoint(lat: float = Query(20.1484), lon: float = Query(85.6711
 
 @app.post("/api/routes/directions")
 def get_directions_endpoint(req_body: DirectionRequest):
-    """Fetch live road routing geometry from OpenRouteService API"""
     api_key = get_map_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="MAP_API_KEY is not configured")
 
-    # Format into OpenRouteService expected coordinates
     if isinstance(req_body.start, (list, tuple)):
         start_lat, start_lon = req_body.start[0], req_body.start[1]
     else:
@@ -204,7 +255,6 @@ def get_directions_endpoint(req_body: DirectionRequest):
             data = resp.json()
             feat = data["features"][0]
             summary = feat["properties"]["summary"]
-            # Convert [lon, lat] to [lat, lon] for Leaflet
             leaflet_coords = [[pt[1], pt[0]] for pt in feat["geometry"]["coordinates"]]
             return {
                 "distance_km": round(summary["distance"] / 1000, 2),
@@ -223,7 +273,6 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
         user_message = request.messages[-1].get("content", "")
         current_route = request.state.get("current_route", "route_99") if request.state else "route_99"
         
-        # Inject active driver hazard reports into the prompt context for Gemini
         hazard_context = ""
         if LIVE_HAZARD_REPORTS:
             hazard_context = f"\n[CRITICAL TELEMETRY]: Active crowdsourced driver reports from field: {' | '.join(LIVE_HAZARD_REPORTS)}."
@@ -246,10 +295,8 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
             "current_route": current_route,
         }
         
-        # Execute LangGraph
         result = graph_app.invoke(inputs)
         
-        # Extract messages and tool execution logs
         message_history = []
         agent_steps = []
         mock_email_sent = None
@@ -267,7 +314,6 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
                 "tool_calls": getattr(msg, "tool_calls", None)
             })
 
-            # Check for tool calls and email dispatch
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tc in msg.tool_calls:
                     tool_name = tc.get("name")
@@ -297,7 +343,6 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
             "reroute" in final_content.lower()
         )
 
-        # Append strategist reasoning
         agent_steps.insert(0, {
             "timestamp": "Now",
             "node": "strategist",

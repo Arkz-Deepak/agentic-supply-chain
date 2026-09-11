@@ -19,7 +19,7 @@
 Global supply chains lose billions of dollars annually due to static routing engines that fail when unpredicted real-world disruptions strike. When a monsoon flash flood drowns an arterial highway or a sudden labor blockade halts transport, legacy ERP systems wait hours for human dispatchers to intervene.
 
 **NEXUS** replaces static dispatching with an **autonomous agentic command center**:
-1. **Unstructured Crisis Ingestion**: Field drivers or IoT sensors submit raw mobile reports (text or voice) of strikes, road collapses, or flash floods via an open webhook (`/api/report_hazard`).
+1. **Unstructured Voice & Mobile Crisis Ingestion**: Field drivers speak directly into their mobile phones or browser mic. The raw conversational speech (e.g. *"Yo, I'm stuck near Khandagiri junction on NH-16, massive strike and waterlogging here!"*) is streamed to `/api/report_hazard_voice`. Gemini 3.7 Flash extracts structured entities (`location`, `blockade type`, `severity`) with zero human latency.
 2. **LangGraph Strategist Reasoning**: Powered by Google Gemini 3.7 Flash, the agent continuously evaluates live crowdsourced hazard reports, real-time meteorological conditions (OpenWeatherMap), and actual highway topography (OpenRouteService).
 3. **Dynamic Closed-Loop Rerouting**: If a primary corridor (such as NH-16) is blocked, the agent autonomously calculates an intermodal bypass corridor (such as the Daya West Canal arterial) directly into the destination.
 4. **Automated Stakeholder Dispatch**: The agent autonomously drafts and transmits formal emergency notifications to the warehouse manager and client with verified ETAs, requiring zero manual human overhead.
@@ -210,7 +210,7 @@ npm run dev
 ## 📡 API Reference
 
 ### 1. `POST /api/report_hazard`
-Webhook for field drivers or IoT systems to report a crisis.
+Webhook for field drivers or IoT systems to report a crisis via text.
 ```bash
 curl -X POST http://localhost:8010/api/report_hazard \
   -H "Content-Type: application/json" \
@@ -219,18 +219,32 @@ curl -X POST http://localhost:8010/api/report_hazard \
     "description": "Transport union strike & 4ft monsoon waterlogging."
   }'
 ```
-**Response:**
+
+### 2. `POST /api/report_hazard_voice` (Natural Language Speech-to-NLP)
+Webhook that accepts raw conversational voice transcripts and extracts structured data with Gemini 3.7 Flash:
+```bash
+curl -X POST http://localhost:8010/api/report_hazard_voice \
+  -H "Content-Type: application/json" \
+  -d '{
+    "raw_transcript": "Yo, I am from this area near Khandagiri on NH-16 and there is a huge problem right here with a transport union strike and 4ft waterlogging, road is totally blocked!"
+  }'
+```
+**Response (Gemini Entity Extraction):**
 ```json
 {
   "status": "success",
-  "message": "Hazard logged. Next fleet dispatch will autonomously reroute.",
+  "parsed": {
+    "location": "Khandagiri, NH-16",
+    "description": "Transport union strike and 4ft waterlogging causing complete road blockage",
+    "severity": "CRITICAL"
+  },
   "active_reports": [
-    "Khandagiri Junction NH-16: Transport union strike & 4ft monsoon waterlogging."
+    "Khandagiri, NH-16: Transport union strike and 4ft waterlogging causing complete road blockage"
   ]
 }
 ```
 
-### 2. `GET /api/weather`
+### 3. `GET /api/weather`
 Fetches real-time weather from OpenWeatherMap for any coordinate (defaults to IIT Bhubaneswar).
 ```bash
 curl http://localhost:8010/api/weather?lat=20.1484&lon=85.6711
