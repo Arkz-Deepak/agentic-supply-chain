@@ -55,7 +55,7 @@ export default function App() {
       node: 'system',
       type: 'INFO',
       content:
-        'Nexus Command Center online on dedicated ports (UI: 5180, API: 8010). Live Voice Webhook & Gemini NLP active.',
+        'LogiPulse Autonomous Command Center online for Tech Zephyr 4.0 (IIT BBS). Dedicated ports active (UI: 5180, API: 8010). Live Voice Webhook & Gemini NLP ready.',
     },
   ]);
 
@@ -65,7 +65,7 @@ export default function App() {
       {
         role: 'system',
         content:
-          'LangGraph Orchestrator initialized with Gemini 3.7 Flash. 4 tools bound: OpenRouteService, OpenWeatherMap, Crowdsourced Traffic, Stakeholder Email.',
+          'LangGraph Orchestrator initialized with Gemini 2.5 Flash. 4 tools bound: OpenRouteService, OpenWeatherMap, Crowdsourced Traffic, Stakeholder Email.',
       },
     ],
     tool_status: 'nominal',

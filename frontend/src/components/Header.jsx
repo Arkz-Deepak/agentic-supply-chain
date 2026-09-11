@@ -38,14 +38,17 @@ export default function Header({ activePhase = 1, agentActive = false, liveWeath
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-display text-lg font-bold tracking-wider text-slate-900">
-                NEXUS<span className="text-sky-600">.AI</span>
+                LogiPulse<span className="text-sky-600">.AI</span>
               </h1>
               <span className="rounded-md bg-sky-50 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-sky-700 border border-sky-200 flex items-center gap-1 shadow-sm">
-                <MapPin className="h-2.5 w-2.5 text-sky-600" /> IIT Bhubaneswar &bull; AHNDKA
+                <MapPin className="h-2.5 w-2.5 text-sky-600" /> IIT BBS &bull; Tech Zephyr 4.0
+              </span>
+              <span className="hidden sm:inline-block rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700 border border-emerald-200 shadow-sm">
+                Team Arkz
               </span>
             </div>
             <p className="text-[11px] font-sans text-slate-500 font-medium">
-              Autonomous Logistics Command Center &bull; Real-Time Multi-Agent Rerouting
+              Autonomous Supply Chain Crisis Orchestrator &bull; Applied AI & Operations
             </p>
           </div>
         </div>

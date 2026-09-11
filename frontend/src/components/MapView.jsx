@@ -50,39 +50,46 @@ const createCustomIcon = (color, label, pulse = false) => {
   });
 };
 
-// Custom Truck Marker with dynamic heading rotation and status aura (Clean Light Mode)
-const createTruckIcon = (heading = 0, isHalted = false, isBypass = false) => {
+// Custom Truck Marker with forward-pointing navigation chevron and stable status badge
+const createTruckIcon = (isHalted = false, isBypass = false) => {
   const borderColor = isHalted ? '#E11D48' : isBypass ? '#059669' : '#0284C7';
   const shadowColor = isHalted
-    ? 'rgba(225, 29, 72, 0.4)'
+    ? 'rgba(225, 29, 72, 0.45)'
     : isBypass
-    ? 'rgba(5, 150, 105, 0.4)'
-    : 'rgba(2, 132, 199, 0.4)';
+    ? 'rgba(5, 150, 105, 0.45)'
+    : 'rgba(2, 132, 199, 0.45)';
 
   return L.divIcon({
     className: 'truck-marker',
     html: `
-      <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center; pointer-events: auto;">
         ${
           isHalted
-            ? `<div style="position: absolute; -inset: 6px; border-radius: 50%; border: 2px solid #E11D48; animation: radar-pulse 1.2s infinite;"></div>`
+            ? `<div style="position: absolute; top: -5px; width: 46px; height: 46px; border-radius: 50%; border: 2px solid #E11D48; animation: radar-pulse 1.2s infinite;"></div>`
             : ''
         }
-        <div style="
+        <!-- Directional Vehicle Puck (Rotated smoothly along track) -->
+        <div class="truck-heading-puck" style="
           width: 38px;
           height: 38px;
           background: #FFFFFF;
           border: 2.5px solid ${borderColor};
-          border-radius: 10px;
+          border-radius: 50%;
           box-shadow: 0 4px 14px ${shadowColor};
           display: flex;
           align-items: center;
           justify-content: center;
-          transform: rotate(${heading}deg);
-          transition: transform 0.35s ease-out;
+          transform: rotate(0deg);
+          transition: transform 0.1s linear;
+          position: relative;
         ">
-          <span style="font-size: 19px;">🚛</span>
+          <!-- Forward navigation chevron pointing along track -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="transform: translateY(-1px);">
+            <path d="M12 2.5L4 19.5L12 15.5L20 19.5L12 2.5Z" fill="${borderColor}" stroke="#FFFFFF" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
         </div>
+
+        <!-- Stable Horizontal Status Pill (Does NOT spin) -->
         <div style="
           margin-top: 3px;
           background: #FFFFFF;
@@ -101,7 +108,7 @@ const createTruckIcon = (heading = 0, isHalted = false, isBypass = false) => {
       </div>
     `,
     iconSize: [44, 56],
-    iconAnchor: [22, 28],
+    iconAnchor: [22, 19],
   });
 };
 
@@ -174,6 +181,14 @@ function calculateBearing(startLat, startLng, destLat, destLng) {
   return (brng + 360) % 360;
 }
 
+// Continuous angle unwrapping to prevent 360° reverse spin
+function unwrapAngle(target, current) {
+  let diff = (target - current) % 360;
+  if (diff < -180) diff += 360;
+  if (diff > 180) diff -= 360;
+  return current + diff;
+}
+
 export default function MapView({
   startPoint,
   destinationPoint,
@@ -199,9 +214,10 @@ export default function MapView({
     return primaryPolyline;
   }, [disruptionState, reroutePolyline, primaryPolyline]);
 
-  // Animated truck state
+  // Animated truck state & direct marker ref for jitter-free 60fps tracking
   const [truckPos, setTruckPos] = useState(null);
-  const [truckHeading, setTruckHeading] = useState(0);
+  const truckMarkerRef = useRef(null);
+  const currentHeadingRef = useRef(0);
   const progressRef = useRef(0.0);
   const animFrameRef = useRef(null);
 
@@ -212,7 +228,7 @@ export default function MapView({
     }
   }, [activePath]);
 
-  // Smooth, Realistic GPS Animation Loop (Reduced Calm Speed)
+  // Smooth, Realistic GPS Animation Loop along active road polyline
   useEffect(() => {
     if (!activePath || activePath.length < 2) return;
 
@@ -222,8 +238,7 @@ export default function MapView({
       const delta = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
-      // Realistic relaxed driving speed (reduced as requested)
-      // Normal: 0.009 (gives ~110 seconds full traversal, calm & professional)
+      // Realistic relaxed driving speed
       const baseSpeed = disruptionState === 'resolved' ? 0.011 : 0.0085;
 
       if (disruptionState === 'detected') {
@@ -250,10 +265,27 @@ export default function MapView({
       if (p1 && p2) {
         const curLat = p1[0] + (p2[0] - p1[0]) * segmentProgress;
         const curLng = p1[1] + (p2[1] - p1[1]) * segmentProgress;
-        setTruckPos([curLat, curLng]);
 
-        const heading = calculateBearing(p1[0], p1[1], p2[0], p2[1]);
-        setTruckHeading(heading);
+        // Sample lookahead point 3-4 waypoints down the active road for smooth stable trajectory
+        const lookAheadIdx = Math.min(activePath.length - 1, segmentIdx + 4);
+        const pAhead = activePath[lookAheadIdx] || p2;
+        const targetBearing = calculateBearing(curLat, curLng, pAhead[0], pAhead[1]);
+
+        // Unwrapped angle + exponential moving average filter (no jitter, no wild 360 spin)
+        const unwrappedTarget = unwrapAngle(targetBearing, currentHeadingRef.current);
+        currentHeadingRef.current += (unwrappedTarget - currentHeadingRef.current) * 0.12;
+
+        // Direct DOM update for 60fps silky smooth glide without Leaflet DOM destruction
+        if (truckMarkerRef.current) {
+          truckMarkerRef.current.setLatLng([curLat, curLng]);
+          const el = truckMarkerRef.current.getElement();
+          if (el) {
+            const puck = el.querySelector('.truck-heading-puck');
+            if (puck) {
+              puck.style.transform = `rotate(${Math.round(currentHeadingRef.current)}deg)`;
+            }
+          }
+        }
       }
 
       animFrameRef.current = requestAnimationFrame(animateTruck);
@@ -269,9 +301,10 @@ export default function MapView({
   const isHalted = disruptionState === 'detected';
   const isBypass = disruptionState === 'resolved';
 
+  // Recreated ONLY on phase status changes, not 60 times/second
   const truckMarkerIcon = useMemo(() => {
-    return createTruckIcon(truckHeading, isHalted, isBypass);
-  }, [truckHeading, isHalted, isBypass]);
+    return createTruckIcon(isHalted, isBypass);
+  }, [isHalted, isBypass]);
 
   return (
     <div className="relative w-full h-full min-h-[500px] rounded-2xl overflow-hidden glass-panel border border-sky-200/80 shadow-[0_8px_30px_rgba(14,165,233,0.12)]">
@@ -462,7 +495,7 @@ export default function MapView({
 
         {/* Live Animated Truck Marker (Controlled Calm Pace) */}
         {truckPos && (
-          <Marker position={truckPos} icon={truckMarkerIcon}>
+          <Marker ref={truckMarkerRef} position={truckPos} icon={truckMarkerIcon}>
             <Popup>
               <div className="font-sans text-xs">
                 <span className="font-bold text-sky-700">CARRIER UNIT TRK-8821</span>

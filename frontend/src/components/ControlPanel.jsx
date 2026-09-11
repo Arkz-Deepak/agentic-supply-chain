@@ -56,11 +56,11 @@ export default function ControlPanel({
             <div className="flex items-center gap-2">
               <Sliders className="h-4 w-4 text-sky-600" />
               <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-800">
-                Corridor Controls &bull; IIT Bhubaneswar
+                LogiPulse Controls &bull; IIT Bhubaneswar
               </h2>
             </div>
             <span className="text-[10px] font-mono font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 shadow-sm">
-              AHNDKA Command
+              Tech Zephyr 4.0
             </span>
           </div>
 
