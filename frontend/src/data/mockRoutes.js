@@ -69,31 +69,64 @@ export const DISRUPTION_ZONES = [
 ];
 
 /**
+ * Calculate approximate driving distance using Haversine formula with road winding factor.
+ */
+export function calculateHaversineDistanceKm(coord1, coord2) {
+  if (!coord1 || !coord2) return 33.8;
+  let [lat1, lon1] = coord1;
+  let [lat2, lon2] = coord2;
+  if (lat1 > 50 && lon1 < 40) [lat1, lon1] = [lon1, lat1];
+  if (lat2 > 50 && lon2 < 40) [lat2, lon2] = [lon2, lat2];
+
+  const R = 6371; // km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const roadFactor = 1.28; // road curvature multiplier
+  const dist = Math.max(1.0, Math.round(R * c * roadFactor * 10) / 10);
+  return dist;
+}
+
+/**
  * Generate an interpolated polyline path between any two [lat, lng] points
  * with realistic curvature for mapping.
  */
 export function generateCurvedRoute(start, end, intermediateDetour = null) {
   if (!start || !end) return [];
-  const [lat1, lng1] = start;
-  const [lat2, lng2] = end;
+  let [lat1, lng1] = start;
+  let [lat2, lng2] = end;
+
+  // Safeguard: for Odisha/India, lat is ~20, lng is ~85. Fix if inverted.
+  if (lat1 > 50 && lng1 < 40) [lat1, lng1] = [lng1, lat1];
+  if (lat2 > 50 && lng2 < 40) [lat2, lng2] = [lng2, lat2];
 
   if (intermediateDetour) {
+    let [dLat, dLng] = intermediateDetour;
+    if (dLat > 50 && dLng < 40) [dLat, dLng] = [dLng, dLat];
     const p1 = [lat1, lng1];
-    const p2 = [(lat1 + intermediateDetour[0]) / 2, (lng1 + intermediateDetour[1]) / 2];
-    const p3 = intermediateDetour;
-    const p4 = [(intermediateDetour[0] + lat2) / 2, (intermediateDetour[1] + lng2) / 2];
+    const p2 = [(lat1 + dLat) / 2, (lng1 + dLng) / 2];
+    const p3 = [dLat, dLng];
+    const p4 = [(dLat + lat2) / 2, (dLng + lng2) / 2];
     const p5 = [lat2, lng2];
     return [p1, p2, p3, p4, p5];
   }
 
-  // Smooth 5-point curve
-  const midLat = (lat1 + lat2) / 2 + (lng2 - lng1) * 0.08;
-  const midLng = (lng1 + lng2) / 2 - (lat2 - lat1) * 0.08;
+  // Smooth 7-point realistic road curve with guaranteed valid coordinates
+  const midLat = (lat1 + lat2) / 2 + (lng2 - lng1) * 0.04;
+  const midLng = (lng1 + lng2) / 2 - (lat2 - lat1) * 0.04;
   return [
     [lat1, lng1],
+    [(lat1 * 2 + midLat) / 3, (lng1 * 2 + midLng) / 3],
     [(lat1 + midLat) / 2, (lng1 + midLng) / 2],
     [midLat, midLng],
-    [(midLat + lat2) / 2, (midLng + lat2) / 2],
+    [(midLat + lat2) / 2, (midLng + lng2) / 2],
+    [(midLat + lat2 * 2) / 3, (midLng + lng2 * 2) / 3],
     [lat2, lng2],
   ];
 }

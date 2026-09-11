@@ -10,7 +10,7 @@ export const apiClient = axios.create({
     'Accept': 'application/json',
   },
   withCredentials: false,
-  timeout: 15000,
+  timeout: 25000,
 });
 
 /**
@@ -110,7 +110,7 @@ export async function orchestrateRoute({
     };
   } catch (error) {
     console.warn(
-      'FastAPI backend at port 8010 unreachable. Engaging high-fidelity agentic fallback simulator.',
+      'FastAPI backend orchestrate fallback: Engaging high-fidelity agentic simulator.',
       error
     );
 
@@ -124,20 +124,63 @@ export async function orchestrateRoute({
 }
 
 function simulateAgentResponse({ startPoint, destination, currentRouteId, disruptionType }) {
-  const isDisrupted = Boolean(disruptionType || currentRouteId === 'route_99');
+  const isDisrupted = Boolean(disruptionType);
+  const startName = startPoint?.name || 'Origin Hub';
+  const destName = destination?.name || 'IIT Bhubaneswar';
 
+  if (!isDisrupted) {
+    const steps = [
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        node: 'strategist',
+        type: 'THINKING',
+        content: `Strategist evaluated primary freight corridor: [${startName}] &rarr; [${destName}]. Telemetry nominal.`,
+      },
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        node: 'tools',
+        type: 'TOOL_CALL',
+        toolName: 'get_weather_disruptions',
+        args: { location: 'Odisha Regional Hubs' },
+        content: `Telemetry verified: Conditions clear along active route. Visibility optimal.`,
+      },
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        node: 'strategist',
+        type: 'ROUTING_UPDATE',
+        content: `Primary logistics path confirmed: [${startName}] &rarr; [${destName}]. Fleet dispatch authorized.`,
+      },
+    ];
+
+    return {
+      success: true,
+      source: 'simulation',
+      data: {
+        final_route: currentRouteId || 'route_primary',
+        status: 'ROUTE_ACTIVE',
+        eta_minutes: 34,
+        distance_km: 33.8,
+        risk_score: 2,
+        agent_steps: steps,
+        email_dispatched: null,
+        ai_summary: `Direct cargo corridor verified and confirmed from ${startName} to ${destName}. Ready for carrier dispatch.`,
+      },
+    };
+  }
+
+  // If disruptionType is present (Phase 2)
   const steps = [
     {
       timestamp: new Date().toLocaleTimeString(),
       node: 'telemetry_sensor',
       type: 'INCOMING_ALERT',
-      content: `Voice alert parsed by Gemini: Carrier unit TRK-8821 halted near Khandagiri Junction. Event: ${disruptionType || 'Severe Flash Flood (4ft) & Strike'} on NH-16.`,
+      content: `Voice alert parsed by Gemini: Carrier unit TRK-8821 halted near Khandagiri Junction. Event: ${disruptionType} on NH-16.`,
     },
     {
       timestamp: new Date().toLocaleTimeString(),
       node: 'strategist',
       type: 'THINKING',
-      content: `LangGraph Strategist evaluating route [${startPoint?.name || 'Start'} -> ${destination?.name || 'IIT BBS'}]. Querying live weather & corridor status...`,
+      content: `LangGraph Strategist evaluating route [${startName} &rarr; ${destName}]. Querying live corridor telemetry...`,
     },
     {
       timestamp: new Date().toLocaleTimeString(),
@@ -148,25 +191,22 @@ function simulateAgentResponse({ startPoint, destination, currentRouteId, disrup
       result: 'hazard_confirmed',
       content: `Active driver report verified: Khandagiri NH-16 blocked by protest & waterlogging.`,
     },
-  ];
-
-  if (isDisrupted) {
-    steps.push({
+    {
       timestamp: new Date().toLocaleTimeString(),
       node: 'strategist',
       type: 'AUTONOMOUS_RECOVERY',
       content: `Primary route NH-16 failed verification. Activating secondary Daya West Canal green corridor...`,
-    });
-    steps.push({
+    },
+    {
       timestamp: new Date().toLocaleTimeString(),
       node: 'tools',
       type: 'TOOL_CALL',
       toolName: 'get_map_routes',
-      args: { start_coords: '85.8640,20.3010', end_coords: '85.6711,20.1484', bypass: 'Daya_West_Canal' },
+      args: { bypass: 'Daya_West_Canal' },
       result: 'success',
-      content: `OpenRouteService computed Route 101 Express via Daya Canal (33.8 km, clear conditions, direct to South Gate).`,
-    });
-    steps.push({
+      content: `OpenRouteService computed Route 101 Express via Daya Canal bypass (clear conditions, direct to South Gate).`,
+    },
+    {
       timestamp: new Date().toLocaleTimeString(),
       node: 'tools',
       type: 'TOOL_CALL',
@@ -178,36 +218,32 @@ function simulateAgentResponse({ startPoint, destination, currentRouteId, disrup
       },
       result: 'success',
       content: `Dispatched formal emergency notification to warehouse manager & client inbox.`,
-    });
-    steps.push({
+    },
+    {
       timestamp: new Date().toLocaleTimeString(),
       node: 'strategist',
       type: 'EXECUTION_COMPLETE',
       content: `SUCCESS: Autonomous reroute committed. Truck telemetry vector updated to route_101_express. Live navigation updated.`,
-    });
-  }
+    },
+  ];
 
   return {
     success: true,
     source: 'simulation',
     data: {
-      final_route: isDisrupted ? 'route_101_express' : (currentRouteId || 'route_optimal'),
-      status: isDisrupted ? 'REROUTED_SUCCESSFULLY' : 'ROUTE_ACTIVE',
-      eta_minutes: isDisrupted ? 44 : 33,
-      distance_km: isDisrupted ? 33.8 : 33.7,
-      risk_score: isDisrupted ? 3 : 10,
+      final_route: 'route_101_express',
+      status: 'REROUTED_SUCCESSFULLY',
+      eta_minutes: 41,
+      distance_km: 33.8,
+      risk_score: 3,
       agent_steps: steps,
-      email_dispatched: isDisrupted
-        ? {
-            to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
-            reason: 'Transport Union Strike at Khandagiri NH-16',
-            alternative_route: 'Daya West Canal Green Bypass (Route 101)',
-            new_eta: '+7 mins (38 mins total)',
-          }
-        : null,
-      ai_summary: isDisrupted
-        ? `Primary route ${currentRouteId || 'route_99'} blocked by Khandagiri flood & strike. Strategist agent autonomously rerouted via Daya West Canal green arterial (+7 min ETA). Delivery to IIT Bhubaneswar guaranteed.`
-        : `Initial optimal corridor calculated and locked. Fleet logistics tracking active.`,
+      email_dispatched: {
+        to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
+        reason: 'Transport Union Strike at Khandagiri NH-16',
+        alternative_route: 'Daya West Canal Green Bypass (Route 101)',
+        new_eta: '+7 mins (38 mins total)',
+      },
+      ai_summary: `Primary route blocked by Khandagiri strike/flood. Strategist agent autonomously rerouted via Daya West Canal green arterial (+7 min ETA). Delivery to IIT Bhubaneswar guaranteed.`,
     },
   };
 }

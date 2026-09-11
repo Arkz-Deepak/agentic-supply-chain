@@ -117,17 +117,42 @@ function MapClickHandler({ settingPointType, onPointSelected }) {
   return null;
 }
 
-// Auto-fitter to pan/zoom smoothly when route changes
+// Auto-fitter to pan/zoom smoothly with strict bounds sanitization
 function RouteBoundsFitter({ points }) {
   const map = useMap();
   useEffect(() => {
-    if (points && points.length > 1) {
-      try {
-        const bounds = L.latLngBounds(points);
-        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
-      } catch (err) {
-        console.error('Fit bounds error:', err);
+    if (!points || !Array.isArray(points) || points.length < 2) return;
+
+    try {
+      // Sanitize and validate every coordinate pair
+      const validPoints = points
+        .filter((pt) => Array.isArray(pt) && pt.length >= 2 && !isNaN(pt[0]) && !isNaN(pt[1]))
+        .map(([lat, lng]) => {
+          // Safeguard: detect inverted [lng, lat] (India is lat ~20, lng ~85)
+          if (lat > 50 && lng < 40) {
+            return [lng, lat];
+          }
+          return [lat, lng];
+        })
+        .filter(([lat, lng]) => lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180);
+
+      if (validPoints.length >= 2) {
+        const bounds = L.latLngBounds(validPoints);
+
+        // Sanity check: Ensure bounds span is reasonable for a regional corridor (< 3 degrees)
+        const latSpan = Math.abs(bounds.getNorth() - bounds.getSouth());
+        const lngSpan = Math.abs(bounds.getEast() - bounds.getWest());
+
+        if (latSpan < 4.0 && lngSpan < 4.0) {
+          map.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 14,
+            animate: true,
+          });
+        }
       }
+    } catch (err) {
+      console.warn('Fit bounds error safely caught:', err);
     }
   }, [points, map]);
   return null;

@@ -12,6 +12,7 @@ import {
   DEFAULT_REROUTE_CORRIDOR,
   DISRUPTION_ZONES,
   generateCurvedRoute,
+  calculateHaversineDistanceKm,
 } from './data/mockRoutes';
 import {
   orchestrateRoute,
@@ -118,14 +119,20 @@ export default function App() {
 
       if (destinationPoint) {
         const dirData = await fetchLiveDirections(coords, destinationPoint.coords);
-        if (dirData && dirData.polyline) {
+        if (dirData && dirData.polyline && dirData.polyline.length > 1) {
           setPrimaryPolyline(dirData.polyline);
           setRouteStats({
             distanceKm: dirData.distance_km,
             etaMinutes: Math.round(dirData.duration_min),
           });
         } else {
-          setPrimaryPolyline(generateCurvedRoute(coords, destinationPoint.coords));
+          const fallback = generateCurvedRoute(coords, destinationPoint.coords);
+          const dist = calculateHaversineDistanceKm(coords, destinationPoint.coords);
+          setPrimaryPolyline(fallback);
+          setRouteStats({
+            distanceKm: dist,
+            etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
+          });
         }
       }
     } else if (type === 'dest') {
@@ -140,14 +147,20 @@ export default function App() {
 
       if (startPoint) {
         const dirData = await fetchLiveDirections(startPoint.coords, coords);
-        if (dirData && dirData.polyline) {
+        if (dirData && dirData.polyline && dirData.polyline.length > 1) {
           setPrimaryPolyline(dirData.polyline);
           setRouteStats({
             distanceKm: dirData.distance_km,
             etaMinutes: Math.round(dirData.duration_min),
           });
         } else {
-          setPrimaryPolyline(generateCurvedRoute(startPoint.coords, coords));
+          const fallback = generateCurvedRoute(startPoint.coords, coords);
+          const dist = calculateHaversineDistanceKm(startPoint.coords, coords);
+          setPrimaryPolyline(fallback);
+          setRouteStats({
+            distanceKm: dist,
+            etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
+          });
         }
       }
     }
@@ -162,7 +175,7 @@ export default function App() {
     setEmailDispatched(null);
 
     const dirData = await fetchLiveDirections(startHub.coords, destHub.coords);
-    if (dirData && dirData.polyline) {
+    if (dirData && dirData.polyline && dirData.polyline.length > 1) {
       setPrimaryPolyline(dirData.polyline);
       setRouteStats({
         distanceKm: dirData.distance_km,
@@ -192,19 +205,27 @@ export default function App() {
     setEmailDispatched(null);
 
     const dirData = await fetchLiveDirections(startPoint.coords, destinationPoint.coords);
-    if (dirData && dirData.polyline) {
+    if (dirData && dirData.polyline && dirData.polyline.length > 1) {
       setPrimaryPolyline(dirData.polyline);
       setRouteStats({
         distanceKm: dirData.distance_km,
         etaMinutes: Math.round(dirData.duration_min),
+      });
+    } else {
+      const fallback = generateCurvedRoute(startPoint.coords, destinationPoint.coords);
+      const dist = calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords);
+      setPrimaryPolyline(fallback);
+      setRouteStats({
+        distanceKm: dist,
+        etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
       });
     }
 
     const result = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
-      currentRouteId: 'route_99',
-      prompt: `Please calculate primary cargo corridor from ${startPoint.name} to ${destinationPoint.name} and check road routing.`,
+      currentRouteId: 'route_primary',
+      prompt: `Calculate primary cargo corridor from [${startPoint.name}] to [${destinationPoint.name}]. Check routing status.`,
     });
 
     if (result.data?.agent_steps) {
@@ -213,7 +234,7 @@ export default function App() {
 
     setGraphState((prev) => ({
       ...prev,
-      current_route: 'route_99',
+      current_route: 'route_primary',
       tool_status: 'nominal',
       phase: 1,
     }));
@@ -270,32 +291,47 @@ export default function App() {
     setIsProcessing(true);
     setDisruptionState('rerouting');
 
-    // Query real OpenRouteService bypass road geometry via Daya Canal waypoint
+    // Dynamically calculate bypass waypoint relative to start and dest
+    const isNearBhubaneswar = startPoint.coords[1] > 85.7 && destinationPoint.coords[1] > 85.6;
+    const bypassVia = isNearBhubaneswar
+      ? [20.1980, 85.7950] // Daya West Canal Green Bypass
+      : [
+          (startPoint.coords[0] + destinationPoint.coords[0]) / 2 + 0.018,
+          (startPoint.coords[1] + destinationPoint.coords[1]) / 2 + 0.024,
+        ];
+
+    // Query real OpenRouteService bypass road geometry
     const bypassData = await fetchLiveDirections(
       startPoint.coords,
       destinationPoint.coords,
-      [20.1980, 85.7950]
+      bypassVia
     );
 
     // Call orchestrator
     const response = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
-      currentRouteId: 'route_99',
-      disruptionType: 'Driver voice report of transport strike & flood on NH-16 Khandagiri',
+      currentRouteId: 'route_primary',
+      disruptionType: 'Driver voice report of transport strike & flood on primary route',
       prompt:
-        'Driver voice report of transport strike on NH-16 Khandagiri. Check crowdsourced reports, calculate Daya Canal bypass via OpenRouteService, and notify stakeholders with updated ETA.',
+        `Emergency reroute from ${startPoint.name} to ${destinationPoint.name}. Primary road blocked. Calculate green bypass corridor and notify stakeholders.`,
     });
 
     setTimeout(() => {
-      if (bypassData && bypassData.polyline) {
+      if (bypassData && bypassData.polyline && bypassData.polyline.length > 1) {
         setReroutePolyline(bypassData.polyline);
         setRouteStats({
           distanceKm: bypassData.distance_km,
           etaMinutes: Math.round(bypassData.duration_min),
         });
       } else {
-        setReroutePolyline(DEFAULT_REROUTE_CORRIDOR);
+        const fallbackBypass = generateCurvedRoute(startPoint.coords, destinationPoint.coords, bypassVia);
+        const distKm = Math.round(calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords) * 1.15 * 10) / 10;
+        setReroutePolyline(fallbackBypass);
+        setRouteStats({
+          distanceKm: distKm,
+          etaMinutes: Math.max(8, Math.round((distKm / 45) * 60)),
+        });
       }
 
       setDisruptionState('resolved');
@@ -303,8 +339,8 @@ export default function App() {
 
       const email = response.data?.email_dispatched || {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
-        reason: 'Driver Reported Transport Union Strike at Khandagiri NH-16',
-        alternative_route: 'Daya West Canal Green Bypass (Route 101)',
+        reason: 'Driver Reported Transport Union Strike & Road Disruption',
+        alternative_route: 'Route 101 Express Bypass Corridor',
         new_eta: '+7 mins (38 mins total)',
       };
       setEmailDispatched(email);
@@ -321,7 +357,7 @@ export default function App() {
         tool_status: 'success_rerouted',
         phase: 2,
       }));
-    }, 1500);
+    }, 1200);
   };
 
   // Reset to initial baseline
