@@ -234,7 +234,7 @@ export default function AgentFeed({
                   <p>Our autonomous sensor network detected an active disruption: <span className="text-rose-700 font-semibold">{emailDispatched.reason}</span>.</p>
                   <p>Carrier TRK-8821 has been autonomously redirected onto: <span className="text-emerald-700 font-bold">{emailDispatched.alternative_route}</span>.</p>
                   <p>Updated Expected Delivery Window: <span className="text-sky-700 font-bold">{emailDispatched.new_eta}</span>.</p>
-                  <p className="text-slate-400 text-[10px] font-mono pt-2">Authorized autonomously by LangGraph Strategist Node (Gemini 3.7 Flash).</p>
+                  <p className="text-slate-400 text-[10px] font-mono pt-2">Authorized autonomously by LangGraph Strategist Node (Gemini 2.5 Flash).</p>
                 </div>
               </div>
             ) : (

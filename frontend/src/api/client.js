@@ -212,7 +212,7 @@ function simulateAgentResponse({ startPoint, destination, currentRouteId, disrup
       type: 'TOOL_CALL',
       toolName: 'notify_stakeholders',
       args: {
-        reason: 'Transport Union Strike at Khandagiri NH-16',
+        reason: disruptionType || 'Corridor Disruption on NH-16',
         alternative_route: 'Daya West Canal Green Bypass (Route 101)',
         new_eta: '+7 mins (38 mins total)',
       },
@@ -239,11 +239,23 @@ function simulateAgentResponse({ startPoint, destination, currentRouteId, disrup
       agent_steps: steps,
       email_dispatched: {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
-        reason: 'Transport Union Strike at Khandagiri NH-16',
+        reason: disruptionType || 'Corridor Disruption on NH-16',
         alternative_route: 'Daya West Canal Green Bypass (Route 101)',
         new_eta: '+7 mins (38 mins total)',
       },
-      ai_summary: `Primary route blocked by Khandagiri strike/flood. Strategist agent autonomously rerouted via Daya West Canal green arterial (+7 min ETA). Delivery to IIT Bhubaneswar guaranteed.`,
+      ai_summary: `Primary route blocked by ${disruptionType || 'incident'}. Strategist agent autonomously rerouted via Daya West Canal green arterial (+7 min ETA). Delivery to IIT Bhubaneswar guaranteed.`,
     },
   };
+}
+
+/**
+ * Clears in-memory crowdsourced hazards on the backend
+ */
+export async function clearLiveHazards() {
+  try {
+    const res = await apiClient.delete('/api/hazards');
+    return res.data;
+  } catch (err) {
+    return { status: 'cleared' };
+  }
 }

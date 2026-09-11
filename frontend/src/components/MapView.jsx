@@ -199,6 +199,7 @@ export default function MapView({
   settingPointType,
   setSettingPointType,
   onPointSelected,
+  activeHazard = null,
 }) {
   const startIcon = useMemo(() => createCustomIcon('#059669', 'A', true), []);
   const destIcon = useMemo(() => createCustomIcon('#0284C7', 'B', true), []);
@@ -350,7 +351,9 @@ export default function MapView({
           {disruptionState === 'detected' && (
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping"></span>
-              <span className="text-rose-600 font-bold">Khandagiri Blockade</span>
+              <span className="text-rose-600 font-bold uppercase">
+                {activeHazard?.incident_type ? `${activeHazard.incident_type.replace(/_/g, ' ')} ALERT` : 'Khandagiri Blockade'}
+              </span>
             </div>
           )}
         </div>
@@ -484,9 +487,11 @@ export default function MapView({
               >
                 <Popup>
                   <div className="font-sans text-xs">
-                    <span className="font-bold text-rose-700">DISRUPTION ZONE:</span>
-                    <p className="font-semibold text-slate-900">{zone.name}</p>
-                    <p className="text-[10px] text-rose-700">{zone.details}</p>
+                    <span className="font-bold text-rose-700 uppercase">
+                      DISRUPTION ZONE &bull; {activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'ACTIVE HAZARD'}
+                    </span>
+                    <p className="font-semibold text-slate-900">{activeHazard?.location || zone.name}</p>
+                    <p className="text-[10px] text-rose-700">{activeHazard?.description || zone.details}</p>
                   </div>
                 </Popup>
               </Circle>
@@ -505,7 +510,7 @@ export default function MapView({
                 <p className="text-slate-600 text-[11px] mt-0.5">
                   Status:{' '}
                   {isHalted
-                    ? '⚠️ EMERGENCY STOP - NH-16 BLOCKED'
+                    ? `⚠️ EMERGENCY STOP - ${activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'NH-16 BLOCKED'}`
                     : isBypass
                     ? '🚀 NAVIGATING DAYA CANAL BYPASS'
                     : 'EN ROUTE'}

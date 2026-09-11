@@ -22,9 +22,10 @@ export default function VoiceReportModal({
   const recognitionRef = useRef(null);
 
   const samplePhrases = [
-    "Yo, I'm near Khandagiri junction on NH-16. There's a massive transport strike and 4ft waterlogging, none of the trucks can move!",
-    "Alert dispatch! Roadblock on NH-16 Sector 9. Farmers and truckers are protesting, highway is completely shut down.",
-    "Emergency report from TRK-8821: Flash flood at Tamando junction, need immediate alternative bypass to IIT Bhubaneswar.",
+    "Emergency dispatch! Major multi-vehicle car accident at Khandagiri junction on NH-16, both lanes completely blocked!",
+    "Alert command! Heavy storm knocked down a massive banyan tree and wood logs across the highway near Khandagiri, road is impassable.",
+    "Critical update: Severe flash flood and 4-foot waterlogging at Tamando junction NH-16, trucks are submerged.",
+    "Roadblock alert: Transport union strike and dharna on the highway, all freight traffic stopped.",
   ];
 
   useEffect(() => {
@@ -197,7 +198,7 @@ export default function VoiceReportModal({
             <textarea
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
-              placeholder='Click the microphone and say: "Yo, I am near Khandagiri junction on NH-16, there is a huge strike and flood..." or select a sample phrase below.'
+              placeholder='Click the microphone and say: "Emergency! Multi-vehicle accident near Khandagiri..." or "Fallen tree and wood blocking the road...", or select a sample phrase below.'
               rows={3}
               className="w-full rounded-xl bg-slate-50 border border-slate-300 p-3 text-xs font-sans text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition"
             />

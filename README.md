@@ -1,32 +1,50 @@
-# 🚛 NEXUS // Autonomous Agentic Supply Chain Command Center
+# 🚛 LogiPulse // Autonomous Supply Chain Crisis Orchestrator
 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agentic_Core-FF6F00?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-3.7_Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-2.5_Flash-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![Three.js](https://img.shields.io/badge/Three.js-R3F-000000?style=for-the-badge&logo=three.js&logoColor=white)](https://threejs.org)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4_Glassmorphism-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
-[![IIT Bhubaneswar](https://img.shields.io/badge/Hosted_at-IIT_Bhubaneswar-E65100?style=for-the-badge)](https://www.iitbbs.ac.in)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-3.4_White_%26_Sky_Blue-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![Tech Zephyr 4.0](https://img.shields.io/badge/Tech_Zephyr_4.0-IIT_Bhubaneswar-E65100?style=for-the-badge)](https://www.iitbbs.ac.in)
+[![Team Arkz](https://img.shields.io/badge/Team-Arkz-059669?style=for-the-badge)](#)
 
-> **Autonomous logistics orchestration and disaster rerouting powered by LangGraph, Google Gemini, OpenRouteService, and OpenWeatherMap.**  
-> Built for the **AHNDKA Hackathon** at **IIT Bhubaneswar**.
+> **Self-healing logistics networks powered by LangGraph, Google Gemini, OpenRouteService, and OpenWeatherMap.**  
+> Built for **Tech Zephyr 4.0** at **IIT Bhubaneswar** by **Team Arkz**.
+
+---
+
+## 📸 Interactive System Tour & Screenshots
+
+| Phase 1: High-Tech Telemetry & GPS Navigation | Phase 2: Natural Voice Hazard Transmission |
+| :---: | :---: |
+| ![LogiPulse Primary Command Center](./assets/1.png) | ![Driver Voice NLP Webhook Modal](./assets/2.png) |
+| *Primary NH-16 freight arterial mapped with real OpenRouteService waypoints.* | *Drivers report accidents, wood blockages, or floods via conversational speech.* |
+
+| Phase 2: Live Incident & Roadblock Detection | Autonomous Green Bypass & Reroute |
+| :---: | :---: |
+| ![Incident Blockade Detected](./assets/3.png) | ![Autonomous Green Corridor Bypass](./assets/4.png) |
+| *Carrier halts automatically; Gemini extracts incident category & severity.* | *Agent calculates Daya West Canal bypass, avoiding the bottleneck.* |
 
 <p align="center">
-  <img src="./assets/1.png" alt="NEXUS Command Center - Autonomous Supply Chain Orchestration" width="100%" />
+  <b>Phase 3: Autonomous Stakeholder Notification Email Dispatched</b><br/>
+  <img src="./assets/5.png" alt="Autonomous Stakeholder Email Dispatch Log" width="90%" />
+  <br/>
+  <i>LangGraph Strategist autonomously drafts and delivers urgent dispatch advisories with verified ETAs to client & warehouse inboxes.</i>
 </p>
 
 ---
 
 ## 🌟 Executive Summary
 
-Global supply chains lose billions of dollars annually due to static routing engines that fail when unpredicted real-world disruptions strike. When a monsoon flash flood drowns an arterial highway or a sudden labor blockade halts transport, legacy ERP systems wait hours for human dispatchers to intervene.
+Global supply chains lose billions of dollars annually due to static routing engines that fail when unpredicted real-world disruptions strike. When a multi-vehicle highway accident occurs, storm debris drops fallen logs across an arterial corridor, or a sudden flood halts transport, legacy ERP systems wait hours for human dispatchers to intervene.
 
-**NEXUS** replaces static dispatching with an **autonomous agentic command center**:
-1. **Unstructured Voice & Mobile Crisis Ingestion**: Field drivers speak directly into their mobile phones or browser mic. The raw conversational speech (e.g. *"Yo, I'm stuck near Khandagiri junction on NH-16, massive strike and waterlogging here!"*) is streamed to `/api/report_hazard_voice`. Gemini 3.7 Flash extracts structured entities (`location`, `blockade type`, `severity`) with zero human latency.
-2. **LangGraph Strategist Reasoning**: Powered by Google Gemini 3.7 Flash, the agent continuously evaluates live crowdsourced hazard reports, real-time meteorological conditions (OpenWeatherMap), and actual highway topography (OpenRouteService).
+**LogiPulse** replaces static dispatching with an **autonomous agentic command center**:
+1. **Dynamic Speech-to-NLP Incident Extraction**: Field drivers speak naturally into their mobile device or browser microphone (e.g. *"Terrible accident at Khandagiri junction, cars smashed across both lanes!"* or *"Uprooted trees and heavy wood logs are blocking the highway"*). Google Gemini dynamically classifies the exact category (`ACCIDENT`, `FALLEN_TREE_WOOD`, `WATERLOGGING_FLOOD`, `PROTEST_STRIKE`, `ROAD_BLOCKAGE`) and extracts the location and severity with zero human delay.
+2. **LangGraph Strategist Reasoning**: Powered by Google Gemini, the agent continuously evaluates live crowdsourced hazard reports, real-time meteorological conditions (OpenWeatherMap), and actual highway topography (OpenRouteService).
 3. **Dynamic Closed-Loop Rerouting**: If a primary corridor (such as NH-16) is blocked, the agent autonomously calculates an intermodal bypass corridor (such as the Daya West Canal arterial) directly into the destination.
-4. **Automated Stakeholder Dispatch**: The agent autonomously drafts and transmits formal emergency notifications to the warehouse manager and client with verified ETAs, requiring zero manual human overhead.
+4. **Automated Stakeholder Dispatch**: The agent autonomously drafts and transmits formal emergency notifications to the warehouse manager and client with verified ETAs, citing the exact incident reported.
 
 ---
 
@@ -266,7 +284,7 @@ curl -X POST http://localhost:8010/api/routes/directions \
 ```
 
 ### 4. `POST /api/orchestrate`
-Executes the LangGraph multi-tool workflow with Google Gemini 3.7 Flash.
+Executes the LangGraph multi-tool workflow with Google Gemini 2.5 Flash.
 
 ---
 
@@ -274,14 +292,14 @@ Executes the LangGraph multi-tool workflow with Google Gemini 3.7 Flash.
 
 | Stage | Action on Screen | Audio / Visual Result | What to Say to the Judges |
 | :--- | :--- | :--- | :--- |
-| **1. Intro** | Open `http://localhost:5180` | Dark glassmorphism dashboard loads. 3D particle constellation rotates with cursor. Map focuses on IIT Bhubaneswar. Header displays live weather (`27.1°C • Broken Clouds`). | *"Welcome to NEXUS, an autonomous agentic logistics core developed for the AHNDKA Hackathon at IIT Bhubaneswar."* |
-| **2. Phase 1** | Click **"Phase 1: Calculate Route"** | Mechanical click sounds. OpenRouteService computes 408 real highway coordinates. Carrier TRK-8821 begins driving along NH-16. | *"In Phase 1, our system operates like Google Maps, establishing the optimal commercial freight arterial from Bhubaneswar Central Depot to IIT Bhubaneswar Campus."* |
-| **3. Phase 2** | Click **"Phase 2: Driver Reports Strike"** (or fire `POST /api/report_hazard` from phone) | Dispatch alert tone sounds. Red pulsing hazard bloom appears at Khandagiri. **The truck physically brakes and halts on the road.** | *"A real-world crisis occurs: A driver reports an emergency strike and flash flood at Khandagiri. Notice the carrier halts in real time—our agent is actively monitoring the fleet."* |
-| **4. Agent Action** | Click **"AUTONOMOUS AGENT REROUTE & EMAIL STAKEHOLDERS"** | Terminal stream logs Gemini evaluating crowdsourced reports, calling OpenRouteService, and invoking `notify_stakeholders`. | *"Instead of stalling for hours, our LangGraph agent autonomously evaluates the driver report, computes the Daya West Canal bypass, and drafts stakeholder emails."* |
-| **5. Resolution** | Automatic transition | Harmonic chime plays. Emerald bypass corridor illuminates. **The truck marker turns onto the green bypass and accelerates into IIT Bhubaneswar.** | *"The delivery is saved with only a 7-minute delta. Click the Email tab to see the formal dispatch notice already delivered to the warehouse manager. Zero human latency."* |
+| **1. Intro** | Open `http://localhost:5180` | White & Sky-Blue command dashboard loads. 3D particle constellation rotates with cursor. Map focuses on IIT Bhubaneswar. Header displays live weather (`27.1°C • Broken Clouds`). | *"Welcome to LogiPulse, an autonomous agentic crisis orchestrator developed by Team Arkz for Tech Zephyr 4.0 at IIT Bhubaneswar."* |
+| **2. Phase 1** | Click **"Phase 1: Compute Primary Corridor"** | Mechanical click sounds. OpenRouteService computes real highway coordinates. Carrier TRK-8821 begins driving along NH-16. | *"In Phase 1, LogiPulse establishes the optimal commercial freight arterial from Bhubaneswar Central Depot to IIT Bhubaneswar Campus."* |
+| **3. Phase 2** | Click **"Phase 2: Live Driver Voice Transmission"** (or speak into mic: *"Accident on NH-16 near Khandagiri"*) | Dispatch alert tone sounds. Gemini Flash dynamically categorizes `ACCIDENT` / `FALLEN_TREE_WOOD`. Red pulsing hazard appears at Khandagiri. **The truck physically brakes and halts on the road.** | *"A crisis strikes: A driver reports an emergency in natural speech. Gemini dynamically identifies the exact incident (accident, tree blockage, or flood). The truck halts instantly."* |
+| **4. Agent Action** | Click **"TRIGGER AGENT REROUTE"** | Terminal stream logs Gemini evaluating crowdsourced telemetry, calculating the Daya West Canal bypass, and dispatching stakeholder notices. | *"Instead of stalling for hours, our LangGraph agent autonomously evaluates the driver report, computes the green bypass corridor, and drafts emergency stakeholder emails."* |
+| **5. Resolution** | Automatic transition | Harmonic chime plays. Emerald bypass corridor illuminates. **The truck marker turns onto the green bypass and drives safely into IIT Bhubaneswar South Gate.** | *"The delivery is saved with only a +7 minute delta. The Email tab proves the formal dispatch notice was autonomously delivered to the warehouse manager."* |
 
 ---
 
 ## 🛡️ License
 
-This project is open-source under the **MIT License**. Built with pride for the **AHNDKA Hackathon** at **IIT Bhubaneswar**.
+This project is open-source under the **MIT License**. Built with pride by **Team Arkz** for **Tech Zephyr 4.0** at **IIT Bhubaneswar**.

@@ -19,6 +19,7 @@ import {
   fetchLiveWeather,
   fetchLiveDirections,
   reportVoiceHazard,
+  clearLiveHazards,
 } from './api/client';
 import {
   playDispatchAlert,
@@ -45,6 +46,7 @@ export default function App() {
 
   // Disruption & Agent State: 'idle' | 'detected' | 'rerouting' | 'resolved'
   const [disruptionState, setDisruptionState] = useState('idle');
+  const [activeHazard, setActiveHazard] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [emailDispatched, setEmailDispatched] = useState(null);
 
@@ -260,15 +262,20 @@ export default function App() {
     // 2. Call backend Voice NLP endpoint
     const voiceRes = await reportVoiceHazard(rawTranscript);
     const parsedData = voiceRes.parsed || {
+      incident_type: 'ROAD_BLOCKAGE',
       location: 'Khandagiri Junction NH-16',
       description: rawTranscript,
+      severity: 'CRITICAL',
     };
 
+    setActiveHazard(parsedData);
+
+    const incidentName = (parsedData.incident_type || 'HAZARD').replace(/_/g, ' ');
     const nlpStep = {
       timestamp: new Date().toLocaleTimeString(),
       node: 'strategist',
       type: 'THINKING',
-      content: `Gemini 3.7 Flash NLP Parsed Transmission -> Location: "${parsedData.location}" | Incident: "${parsedData.description}" | Severity: CRITICAL`,
+      content: `Gemini Flash NLP Parsed Transmission &rarr; Category: [${incidentName}] | Location: "${parsedData.location}" | Details: "${parsedData.description}" | Severity: ${parsedData.severity || 'CRITICAL'}`,
     };
     setAgentSteps((prev) => [...prev, nlpStep]);
 
@@ -283,7 +290,7 @@ export default function App() {
 
   // Fallback direct trigger
   const handleTriggerDisruption = () => {
-    handleVoiceReportSubmitted("Yo, I'm near Khandagiri junction on NH-16. There's a massive transport strike and 4ft waterlogging, all trucks are blocked!");
+    handleVoiceReportSubmitted("Emergency dispatch! Major multi-vehicle car accident at Khandagiri junction on NH-16, lanes are completely blocked!");
   };
 
   // Phase 2 Resolution: Autonomous Agent Reroute & Email Stakeholders
@@ -307,14 +314,19 @@ export default function App() {
       bypassVia
     );
 
+    const incidentTitle = activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock & Disruption';
+    const hazardDesc = activeHazard 
+      ? `${incidentTitle} at ${activeHazard.location}: ${activeHazard.description}`
+      : 'Driver hazard report on primary corridor';
+
     // Call orchestrator
     const response = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
       currentRouteId: 'route_primary',
-      disruptionType: 'Driver voice report of transport strike & flood on primary route',
+      disruptionType: hazardDesc,
       prompt:
-        `Emergency reroute from ${startPoint.name} to ${destinationPoint.name}. Primary road blocked. Calculate green bypass corridor and notify stakeholders.`,
+        `Emergency reroute from ${startPoint.name} to ${destinationPoint.name}. Primary road blocked due to ${hazardDesc}. Calculate green bypass corridor and notify stakeholders.`,
     });
 
     setTimeout(() => {
@@ -337,9 +349,13 @@ export default function App() {
       setDisruptionState('resolved');
       setIsProcessing(false);
 
+      const fallbackEmailReason = activeHazard 
+        ? `${incidentTitle}: ${activeHazard.description} (${activeHazard.location})`
+        : 'Driver Reported Road Disruption on NH-16';
+
       const email = response.data?.email_dispatched || {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
-        reason: 'Driver Reported Transport Union Strike & Road Disruption',
+        reason: fallbackEmailReason,
         alternative_route: 'Route 101 Express Bypass Corridor',
         new_eta: '+7 mins (38 mins total)',
       };
@@ -363,6 +379,8 @@ export default function App() {
   // Reset to initial baseline
   const handleReset = () => {
     setDisruptionState('idle');
+    setActiveHazard(null);
+    clearLiveHazards();
     setReroutePolyline(null);
     setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
     setRouteStats({ distanceKm: 33.8, etaMinutes: 34 });
@@ -403,6 +421,7 @@ export default function App() {
           onTriggerReroute={handleAutonomousReroute}
           disruptedRoute="NH-16 (Route 99)"
           resolvedRoute="Route 101 (Daya Canal Bypass)"
+          activeHazard={activeHazard}
         />
 
         {/* Split Layout: Map (Left) / Agent Feed (Right) */}
@@ -421,6 +440,7 @@ export default function App() {
                 settingPointType={settingPointType}
                 setSettingPointType={setSettingPointType}
                 onPointSelected={handlePointSelected}
+                activeHazard={activeHazard}
               />
             </div>
 

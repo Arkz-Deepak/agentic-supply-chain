@@ -8,8 +8,16 @@ export default function DisruptionBanner({
   onTriggerReroute,
   disruptedRoute = 'NH-16 (Route 99)',
   resolvedRoute = 'Route 101 (Daya Canal Bypass)',
+  activeHazard = null,
 }) {
   if (disruptionState === 'idle') return null;
+
+  const incidentBadge = activeHazard?.incident_type
+    ? activeHazard.incident_type.replace(/_/g, ' ')
+    : 'WATERLOGGING + STRIKE';
+
+  const hazardLocation = activeHazard?.location || 'NH-16 Khandagiri';
+  const hazardDesc = activeHazard?.description || 'Active road blockage on freight corridor';
 
   return (
     <AnimatePresence>
@@ -35,17 +43,17 @@ export default function DisruptionBanner({
                   <div className="flex items-center gap-2">
                     <span className="flex h-2 w-2 rounded-full bg-rose-600 animate-ping" />
                     <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-rose-700">
-                      LIVE ROADBLOCK DETECTED &bull; NH-16 KHANDAGIRI
+                      LIVE ROADBLOCK DETECTED &bull; {hazardLocation.toUpperCase()}
                     </span>
-                    <span className="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-mono font-bold text-rose-800 border border-rose-300">
-                      WATERLOGGING + STRIKE
+                    <span className="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-mono font-bold text-rose-800 border border-rose-300 uppercase">
+                      {incidentBadge}
                     </span>
                   </div>
                   <h3 className="text-sm md:text-base font-bold text-slate-900 tracking-tight mt-0.5">
                     Carrier TRK-8821 Halted on <span className="font-mono text-rose-700 underline">{disruptedRoute}</span> en route to IIT Bhubaneswar
                   </h3>
                   <p className="text-xs text-slate-600">
-                    Carrier telemetry triggered emergency brake. Strategist Agent recommends immediate recalculation via Daya West Canal arterial bypass.
+                    Carrier telemetry triggered emergency brake due to {incidentBadge.toLowerCase()}: &ldquo;{hazardDesc}&rdquo;. Strategist Agent recommends immediate recalculation via bypass corridor.
                   </p>
                 </div>
               </div>
@@ -88,16 +96,16 @@ export default function DisruptionBanner({
                     </span>
                   </div>
                   <h3 className="text-sm md:text-base font-bold text-slate-900 tracking-tight mt-0.5">
-                    Strategist Node Bypassing Khandagiri Flood Bottleneck...
+                    Strategist Node Bypassing {hazardLocation} ({incidentBadge})...
                   </h3>
                   <p className="text-xs text-slate-600 font-mono">
-                    Querying OpenRouteService &bull; Daya West Canal arterial &bull; Direct access to IIT Bhubaneswar South Gate
+                    Querying OpenRouteService &bull; Computing green bypass corridor &bull; Direct access to IIT Bhubaneswar South Gate
                   </p>
                 </div>
               </div>
 
               <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-sky-700 font-semibold">
-                <span className="animate-pulse">Synthesizing Gemini 3.7 Plan...</span>
+                <span className="animate-pulse">Synthesizing Gemini Plan...</span>
               </div>
             </div>
           </div>
@@ -123,7 +131,7 @@ export default function DisruptionBanner({
                     Carrier Resumed Navigation via <span className="font-mono text-emerald-700">{resolvedRoute}</span>
                   </h3>
                   <p className="text-xs text-slate-600">
-                    Bypassed Khandagiri bottleneck completely. Stakeholders notified via automated dispatch email.
+                    Bypassed {hazardLocation} ({incidentBadge}) completely. Stakeholders notified via automated dispatch email.
                   </p>
                 </div>
               </div>

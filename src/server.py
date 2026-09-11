@@ -114,34 +114,40 @@ async def report_hazard(report: HazardReport):
 async def report_hazard_voice(request: VoiceHazardRequest):
     """
     Speech-to-NLP Webhook: Ingests unstructured conversational driver speech,
-    uses Gemini 3.7 Flash to extract location and incident description,
-    and logs it directly to the active hazard registry.
+    uses Gemini 2.5 Flash to dynamically classify the real incident type
+    (ACCIDENT, ROAD_BLOCKAGE, FALLEN_TREE_WOOD, WATERLOGGING_FLOOD, PROTEST_STRIKE, etc.)
+    and exact location, logging it directly to the active hazard registry.
     """
     raw_speech = request.raw_transcript.strip()
     print(f"\n[RAW DRIVER VOICE TRANSMISSION RECEIVED] -> \"{raw_speech}\"")
 
     try:
-        # Prompt Gemini to extract structured incident data
         extract_prompt = (
-            f"You are a logistics dispatch NLP parser. Analyze this raw conversational driver voice transmission: "
+            f"You are an expert AI logistics dispatch NLP parser. Analyze this driver voice transmission: "
             f"\"{raw_speech}\"\n\n"
-            f"Extract the exact location in Odisha and the disruption description. "
+            f"Carefully determine what actually happened. Do NOT assume it is a flood or strike if the driver reports an accident, fallen tree/wood, collision, or road damage.\n"
             f"Respond ONLY in valid JSON format with keys:\n"
-            f'{{"location": "<specific junction/corridor>", "description": "<concise description of blockage/strike/flood>", "severity": "CRITICAL"}}\n'
-            f"Do not include code blocks or extra text."
+            f'{{\n'
+            f'  "incident_type": "<one of: ACCIDENT, FALLEN_TREE_WOOD, ROAD_BLOCKAGE, VEHICLE_COLLISION, WATERLOGGING_FLOOD, PROTEST_STRIKE, LANDSLIDE, ROAD_HAZARD>",\n'
+            f'  "location": "<exact junction or highway mentioned, e.g. Khandagiri, Tamando, Pitapalli, Rasulgarh, or Odisha Freight Corridor>",\n'
+            f'  "description": "<concise factual summary preserving what the driver actually reported>",\n'
+            f'  "severity": "CRITICAL"\n'
+            f'}}\n'
+            f"Do not include markdown blocks or any other text."
         )
 
         res = nlp_llm.invoke(extract_prompt)
         text_content = res.content
         if isinstance(text_content, list):
             text_content = "".join([part.get("text", "") for part in text_content if isinstance(part, dict)])
-        
+
         cleaned_json = text_content.replace("```json", "").replace("```", "").strip()
         data = json.loads(cleaned_json)
 
+        incident_type = str(data.get("incident_type", "ROAD_HAZARD")).upper()
         location = data.get("location", "Khandagiri Junction NH-16")
         description = data.get("description", raw_speech)
-        formatted_alert = f"{location}: {description}"
+        formatted_alert = f"[{incident_type}] {location}: {description}"
 
         LIVE_HAZARD_REPORTS.append(formatted_alert)
         print(f"[GEMINI NLP EXTRACTED ALERT] -> {formatted_alert}")
@@ -149,6 +155,7 @@ async def report_hazard_voice(request: VoiceHazardRequest):
         return {
             "status": "success",
             "parsed": {
+                "incident_type": incident_type,
                 "location": location,
                 "description": description,
                 "severity": data.get("severity", "CRITICAL"),
@@ -157,14 +164,27 @@ async def report_hazard_voice(request: VoiceHazardRequest):
             "active_reports": LIVE_HAZARD_REPORTS
         }
     except Exception as e:
-        # Fallback to direct raw speech
-        fallback_alert = f"Field Transmission (NH-16): {raw_speech}"
+        lower = raw_speech.lower()
+        if any(w in lower for w in ["accident", "crash", "collision", "hit"]):
+            incident_type = "ACCIDENT"
+        elif any(w in lower for w in ["wood", "tree", "log", "timber", "branch"]):
+            incident_type = "FALLEN_TREE_WOOD"
+        elif any(w in lower for w in ["flood", "water", "waterlog", "rain", "drown"]):
+            incident_type = "WATERLOGGING_FLOOD"
+        elif any(w in lower for w in ["strike", "protest", "union", "blocked", "dharna"]):
+            incident_type = "PROTEST_STRIKE"
+        else:
+            incident_type = "ROAD_BLOCKAGE"
+
+        location = "Khandagiri Junction NH-16" if "khandagiri" in lower else "Odisha Freight Corridor"
+        fallback_alert = f"[{incident_type}] {location}: {raw_speech}"
         LIVE_HAZARD_REPORTS.append(fallback_alert)
-        print(f"[FALLBACK LOGGED] -> {fallback_alert} (Parser error: {e})")
+        print(f"[FALLBACK LOGGED] -> {fallback_alert} (Parser notice: {e})")
         return {
             "status": "success",
             "parsed": {
-                "location": "NH-16 Corridor",
+                "incident_type": incident_type,
+                "location": location,
                 "description": raw_speech,
                 "severity": "CRITICAL",
                 "raw_input": raw_speech
@@ -342,25 +362,25 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
     dest_name = dest_pt.get("name", "IIT Bhubaneswar")
 
     hazard_context = ""
+    latest_hazard = LIVE_HAZARD_REPORTS[-1] if LIVE_HAZARD_REPORTS else ""
     if LIVE_HAZARD_REPORTS:
         hazard_context = f"\n[CRITICAL TELEMETRY]: Active crowdsourced driver reports from field: {' | '.join(LIVE_HAZARD_REPORTS)}."
 
     is_blocked = (
         len(LIVE_HAZARD_REPORTS) > 0 or
-        "strike" in user_message.lower() or
-        "block" in user_message.lower() or
-        "disruption" in user_message.lower() or
-        "flood" in user_message.lower()
+        any(k in user_message.lower() for k in ["strike", "block", "disruption", "flood", "accident", "crash", "tree", "wood", "hazard", "reroute", "divert"])
     )
+
+    dynamic_reason = latest_hazard if latest_hazard else ("Active corridor disruption" if is_blocked else "Nominal transit")
 
     try:
         system_instruction = (
-            f"You are the autonomous logistics strategist for Odisha Supply Chain Command at IIT Bhubaneswar. "
+            f"You are the LogiPulse Autonomous Supply Chain Dispatch Agent at IIT Bhubaneswar. "
             f"Carrier TRK-8821 is delivering cargo from {start_name} to {dest_name}. "
             f"{hazard_context} "
-            f"Check crowdsourced traffic reports using get_crowdsourced_traffic. If a strike or flood is reported on the corridor, "
+            f"Check crowdsourced traffic reports using get_crowdsourced_traffic. If any hazard (such as an accident, fallen tree/wood blockage, flood, or strike) is reported on the corridor, "
             f"determine the route is blocked, calculate the alternative bypass corridor using get_map_routes, "
-            f"and AUTONOMOUSLY draft and send an urgent notification email to stakeholders using notify_stakeholders."
+            f"and AUTONOMOUSLY draft and send an urgent notification email to stakeholders using notify_stakeholders citing the exact incident: '{dynamic_reason}'."
         )
 
         inputs = {
@@ -406,7 +426,7 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
                     if tool_name == "notify_stakeholders":
                         mock_email_sent = {
                             "to": "warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in",
-                            "reason": args.get("reason", "Transport Strike on NH-16"),
+                            "reason": args.get("reason", dynamic_reason),
                             "alternative_route": args.get("alternative_route", "Daya West Canal Green Bypass (Route 101)"),
                             "new_eta": args.get("new_eta", "+7 mins (38 mins total)"),
                             "status": "DELIVERED"
@@ -422,11 +442,19 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
         })
 
         if is_blocked:
+            if not mock_email_sent:
+                mock_email_sent = {
+                    "to": "warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in",
+                    "reason": dynamic_reason,
+                    "alternative_route": "Daya West Canal Green Bypass (Route 101)",
+                    "new_eta": "+7 mins (38 mins total)",
+                    "status": "DELIVERED"
+                }
             agent_steps.append({
                 "timestamp": "Now",
                 "node": "strategist",
                 "type": "AUTONOMOUS_RECOVERY",
-                "content": "Strategist agent verified corridor hazard. Activated secondary bypass corridor. Emergency dispatch notification sent."
+                "content": f"Strategist agent verified corridor hazard ({dynamic_reason}). Activated secondary bypass corridor. Emergency dispatch notification sent."
             })
 
         return {
@@ -465,25 +493,25 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
                 "timestamp": "Now",
                 "node": "strategist",
                 "type": "AUTONOMOUS_RECOVERY",
-                "content": "Strategist agent confirmed corridor hazard. Autonomously routed bypass via secondary arterial."
+                "content": f"Strategist agent confirmed corridor hazard: {dynamic_reason}. Autonomously routed bypass via secondary arterial."
             })
             fallback_steps.append({
                 "timestamp": "Now",
                 "node": "tools",
                 "type": "TOOL_CALL",
                 "toolName": "notify_stakeholders",
-                "args": {"reason": "Transport hazard on corridor", "alternative_route": "Route 101 Green Bypass"},
-                "content": "Emergency email dispatched to warehouse and client relations."
+                "args": {"reason": dynamic_reason, "alternative_route": "Route 101 Green Bypass"},
+                "content": f"Emergency email dispatched to warehouse and client relations regarding: {dynamic_reason}."
             })
 
         return {
             "final_route": "route_101_express" if is_blocked else current_route,
             "status": "REROUTED_SUCCESSFULLY" if is_blocked else "ROUTE_CONFIRMED",
-            "ai_summary": f"Autonomous supply chain orchestrator established primary cargo corridor from {start_name} to {dest_name}." if not is_blocked else "Hazard verified. Carrier safely diverted.",
+            "ai_summary": f"Autonomous supply chain orchestrator established primary cargo corridor from {start_name} to {dest_name}." if not is_blocked else f"Corridor hazard verified ({dynamic_reason}). Carrier safely diverted via Route 101 bypass.",
             "agent_steps": fallback_steps,
             "email_dispatched": {
                 "to": "warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in",
-                "reason": "Transport Union Strike / Monsoon Flash Flood",
+                "reason": dynamic_reason,
                 "alternative_route": "Daya West Canal Green Bypass (Route 101)",
                 "new_eta": "+7 mins (38 mins total)"
             } if is_blocked else None,

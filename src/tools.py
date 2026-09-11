@@ -1,9 +1,17 @@
 import os
+import sys
 import requests
 from langchain_core.tools import tool
 from dotenv import load_dotenv
 
 load_dotenv()
+
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 
 # In-memory database to store live reports from the phone/website
 LIVE_HAZARD_REPORTS = []
@@ -104,7 +112,7 @@ def notify_stakeholders(reason: str, new_eta: str, alternative_route: str) -> st
     """
     email_body = (
         f"\n=======================================================\n"
-        f"🚨 URGENT AUTOMATED DISPATCH NOTIFICATION\n"
+        f"[ALERT] URGENT AUTOMATED DISPATCH NOTIFICATION\n"
         f"To: warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in\n"
         f"From: autonomous-agent@nexus-supply-chain.ai\n"
         f"Subject: Immediate Route Divert: Consignment En Route to IIT Bhubaneswar\n"
@@ -115,6 +123,9 @@ def notify_stakeholders(reason: str, new_eta: str, alternative_route: str) -> st
         f"Safety Protocol: Autonomous resolution verified by LangGraph Strategist Core.\n"
         f"=======================================================\n"
     )
-    print("\n[MOCK EMAIL SENT] -> warehouse@odisha-logistics.com, client@iitbbs.ac.in")
-    print(email_body)
+    try:
+        print("\n[MOCK EMAIL SENT] -> warehouse@odisha-logistics.com, client@iitbbs.ac.in")
+        print(email_body)
+    except Exception:
+        pass
     return f"Email successfully dispatched to stakeholders: Warehouse Manager and Client. New ETA: {new_eta} via {alternative_route}."
