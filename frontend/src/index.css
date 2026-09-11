@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  body {
+    background-color: #06080F;
+    color: #E2E8F0;
+    overflow-x: hidden;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(11, 15, 25, 0.7);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 240, 255, 0.5);
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(11, 15, 25, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-danger {
+  background: rgba(35, 10, 20, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(244, 63, 94, 0.2);
+}
+
+.glass-panel-warning {
+  background: rgba(30, 20, 10, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.2);
+}
+
+/* Cyber Glow Borders */
+.cyber-glow {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+}
+
+.cyber-glow-rose {
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+}
+
+/* Custom Leaflet Map styling for Dark Theme */
+.leaflet-container {
+  background-color: #06080F !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+}
+
+/* Dark mode invert filter for OpenStreetMap or standard tiles */
+.dark-tiles {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Leaflet control styling */
+.leaflet-bar {
+  border: 1px solid rgba(0, 240, 255, 0.2) !important;
+  background: rgba(11, 15, 25, 0.85) !important;
+  backdrop-filter: blur(8px);
+}
+.leaflet-bar a {
+  background-color: transparent !important;
+  color: #00F0FF !important;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.1) !important;
+}
+.leaflet-bar a:hover {
+  background-color: rgba(0, 240, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+
+/* Pulsing radar effect */
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+  }
+  70% {
+    transform: scale(1.4);
+    box-shadow: 0 0 0 20px rgba(244, 63, 94, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+  }
+}
+
+.radar-ping {
+  animation: radar-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}

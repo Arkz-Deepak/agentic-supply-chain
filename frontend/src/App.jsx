@@ -1,0 +1,413 @@
+import React, { useState, useEffect } from 'react';
+import ThreeBackground from './components/ThreeBackground';
+import Header from './components/Header';
+import MapView from './components/MapView';
+import AgentFeed from './components/AgentFeed';
+import DisruptionBanner from './components/DisruptionBanner';
+import ControlPanel from './components/ControlPanel';
+import RouteStatsCard from './components/RouteStatsCard';
+import {
+  PRESET_HUBS,
+  DEFAULT_PRIMARY_ROUTE,
+  DEFAULT_REROUTE_CORRIDOR,
+  DISRUPTION_ZONES,
+  generateCurvedRoute,
+} from './data/mockRoutes';
+import {
+  orchestrateRoute,
+  fetchLiveWeather,
+  fetchLiveDirections,
+} from './api/client';
+import {
+  playDispatchAlert,
+  playMechanicalClick,
+  playSuccessChime,
+} from './utils/soundEffects';
+
+export default function App() {
+  // Hubs & Routing Coordinates
+  const [startPoint, setStartPoint] = useState(PRESET_HUBS[0]); // Bhubaneswar Depot
+  const [destinationPoint, setDestinationPoint] = useState(PRESET_HUBS[1]); // IIT BBS
+  const [primaryPolyline, setPrimaryPolyline] = useState(DEFAULT_PRIMARY_ROUTE);
+  const [reroutePolyline, setReroutePolyline] = useState(null);
+
+  // Live real data state
+  const [liveWeather, setLiveWeather] = useState(null);
+  const [routeStats, setRouteStats] = useState({
+    distanceKm: 33.8,
+    etaMinutes: 34,
+  });
+
+  // Map interactive point placement state
+  const [settingPointType, setSettingPointType] = useState(null);
+
+  // Disruption & Agent State: 'idle' | 'detected' | 'rerouting' | 'resolved'
+  const [disruptionState, setDisruptionState] = useState('idle');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [emailDispatched, setEmailDispatched] = useState(null);
+
+  // Agent activity logs
+  const [agentSteps, setAgentSteps] = useState([
+    {
+      timestamp: '19:45:00',
+      node: 'system',
+      type: 'INFO',
+      content:
+        'Nexus Command Center online on dedicated ports (UI: 5180, API: 8010). Webhook endpoint /api/report_hazard active for driver phone alerts.',
+    },
+  ]);
+
+  // Graph state mirroring LangGraph SupplyChainState
+  const [graphState, setGraphState] = useState({
+    messages: [
+      {
+        role: 'system',
+        content:
+          'LangGraph Orchestrator initialized with Gemini 3.7 Flash. 4 tools bound: OpenRouteService, OpenWeatherMap, Crowdsourced Traffic, Stakeholder Email.',
+      },
+    ],
+    tool_status: 'nominal',
+    current_route: 'route_99',
+    phase: 1,
+  });
+
+  // Fetch real weather and initial route on mount
+  useEffect(() => {
+    async function initData() {
+      // 1. Fetch live weather for IIT Bhubaneswar
+      const weather = await fetchLiveWeather(20.1484, 85.6711);
+      if (weather) {
+        setLiveWeather(weather);
+        setAgentSteps((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            node: 'telemetry_sensor',
+            type: 'INFO',
+            content: `Live OpenWeatherMap: ${weather.location} | Temp: ${weather.temp_c}°C, Humidity: ${weather.humidity}%, "${weather.weather}".`,
+          },
+        ]);
+      }
+
+      // 2. Fetch real OpenRouteService highway driving polyline
+      const dirData = await fetchLiveDirections(startPoint.coords, destinationPoint.coords);
+      if (dirData && dirData.polyline && dirData.polyline.length > 5) {
+        setPrimaryPolyline(dirData.polyline);
+        setRouteStats({
+          distanceKm: dirData.distance_km,
+          etaMinutes: Math.round(dirData.duration_min),
+        });
+      }
+    }
+    initData();
+  }, []);
+
+  // Handle map click to set Start or End point
+  const handlePointSelected = async (type, coords) => {
+    playMechanicalClick();
+    if (type === 'start') {
+      const newStart = {
+        id: 'CUSTOM_START',
+        name: `Custom Origin (${coords[0].toFixed(3)}, ${coords[1].toFixed(3)})`,
+        shortName: 'Custom Start',
+        coords,
+      };
+      setStartPoint(newStart);
+      setSettingPointType(null);
+
+      if (destinationPoint) {
+        const dirData = await fetchLiveDirections(coords, destinationPoint.coords);
+        if (dirData && dirData.polyline) {
+          setPrimaryPolyline(dirData.polyline);
+          setRouteStats({
+            distanceKm: dirData.distance_km,
+            etaMinutes: Math.round(dirData.duration_min),
+          });
+        } else {
+          setPrimaryPolyline(generateCurvedRoute(coords, destinationPoint.coords));
+        }
+      }
+    } else if (type === 'dest') {
+      const newDest = {
+        id: 'CUSTOM_DEST',
+        name: `Custom Destination (${coords[0].toFixed(3)}, ${coords[1].toFixed(3)})`,
+        shortName: 'Custom Dest',
+        coords,
+      };
+      setDestinationPoint(newDest);
+      setSettingPointType(null);
+
+      if (startPoint) {
+        const dirData = await fetchLiveDirections(startPoint.coords, coords);
+        if (dirData && dirData.polyline) {
+          setPrimaryPolyline(dirData.polyline);
+          setRouteStats({
+            distanceKm: dirData.distance_km,
+            etaMinutes: Math.round(dirData.duration_min),
+          });
+        } else {
+          setPrimaryPolyline(generateCurvedRoute(startPoint.coords, coords));
+        }
+      }
+    }
+  };
+
+  // Preset Hub Selector
+  const handleSelectPreset = async (startHub, destHub) => {
+    setStartPoint(startHub);
+    setDestinationPoint(destHub);
+    setReroutePolyline(null);
+    setDisruptionState('idle');
+    setEmailDispatched(null);
+
+    const dirData = await fetchLiveDirections(startHub.coords, destHub.coords);
+    if (dirData && dirData.polyline) {
+      setPrimaryPolyline(dirData.polyline);
+      setRouteStats({
+        distanceKm: dirData.distance_km,
+        etaMinutes: Math.round(dirData.duration_min),
+      });
+    } else {
+      setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
+      setRouteStats({ distanceKm: 33.8, etaMinutes: 34 });
+    }
+
+    setAgentSteps((prev) => [
+      ...prev,
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        node: 'strategist',
+        type: 'ROUTING_UPDATE',
+        content: `Waypoints selected: [${startHub.name}] &rarr; [${destHub.name}]. Loaded live highway route.`,
+      },
+    ]);
+  };
+
+  // Phase 1: Compute Initial Route
+  const handleComputePhase1 = async () => {
+    setIsProcessing(true);
+    setDisruptionState('idle');
+    setReroutePolyline(null);
+    setEmailDispatched(null);
+
+    const dirData = await fetchLiveDirections(startPoint.coords, destinationPoint.coords);
+    if (dirData && dirData.polyline) {
+      setPrimaryPolyline(dirData.polyline);
+      setRouteStats({
+        distanceKm: dirData.distance_km,
+        etaMinutes: Math.round(dirData.duration_min),
+      });
+    }
+
+    const result = await orchestrateRoute({
+      startPoint,
+      destination: destinationPoint,
+      currentRouteId: 'route_99',
+      prompt: `Please calculate primary cargo corridor from ${startPoint.name} to ${destinationPoint.name} and check road routing.`,
+    });
+
+    if (result.data?.agent_steps) {
+      setAgentSteps((prev) => [...prev, ...result.data.agent_steps]);
+    }
+
+    setGraphState((prev) => ({
+      ...prev,
+      current_route: 'route_99',
+      tool_status: 'nominal',
+      phase: 1,
+    }));
+
+    setIsProcessing(false);
+  };
+
+  // Phase 2: Disruption triggered (via webhook or UI)
+  const handleTriggerDisruption = () => {
+    playDispatchAlert();
+    setDisruptionState('detected');
+
+    const incidentAlert = {
+      timestamp: new Date().toLocaleTimeString(),
+      node: 'telemetry_sensor',
+      type: 'INCOMING_ALERT',
+      content:
+        'WEBHOOK EVENT: Driver mobile report received: "Transport union strike & waterlogging on NH-16 Khandagiri". Primary corridor blocked.',
+    };
+
+    const strategistAlert = {
+      timestamp: new Date().toLocaleTimeString(),
+      node: 'strategist',
+      type: 'THINKING',
+      content:
+        'Carrier TRK-8821 halted on NH-16. Crowdsourced reports confirm strike. Autonomous recovery triggered: compute Daya Canal bypass & notify stakeholders.',
+      args: { check_reports: 'get_crowdsourced_traffic()' },
+      result: 'hazard_confirmed',
+    };
+
+    setAgentSteps((prev) => [...prev, incidentAlert, strategistAlert]);
+    setGraphState((prev) => ({
+      ...prev,
+      tool_status: 'error_blocked',
+      phase: 2,
+    }));
+  };
+
+  // Phase 2 Resolution: Autonomous Agent Reroute & Email Stakeholders
+  const handleAutonomousReroute = async () => {
+    setIsProcessing(true);
+    setDisruptionState('rerouting');
+
+    // Query real OpenRouteService bypass road geometry via Daya Canal waypoint
+    const bypassData = await fetchLiveDirections(
+      startPoint.coords,
+      destinationPoint.coords,
+      [20.1980, 85.7950]
+    );
+
+    // Call orchestrator
+    const response = await orchestrateRoute({
+      startPoint,
+      destination: destinationPoint,
+      currentRouteId: 'route_99',
+      disruptionType: 'Driver reported transport union strike on NH-16 Khandagiri',
+      prompt:
+        'Driver reported transport strike on NH-16 Khandagiri. Check crowdsourced reports, calculate Daya Canal bypass via OpenRouteService, and notify stakeholders with updated ETA.',
+    });
+
+    setTimeout(() => {
+      if (bypassData && bypassData.polyline) {
+        setReroutePolyline(bypassData.polyline);
+        setRouteStats({
+          distanceKm: bypassData.distance_km,
+          etaMinutes: Math.round(bypassData.duration_min),
+        });
+      } else {
+        setReroutePolyline(DEFAULT_REROUTE_CORRIDOR);
+      }
+
+      setDisruptionState('resolved');
+      setIsProcessing(false);
+
+      // Extract dispatched email
+      const email = response.data?.email_dispatched || {
+        to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
+        reason: 'Transport Union Strike at Khandagiri NH-16',
+        alternative_route: 'Daya West Canal Green Bypass (Route 101)',
+        new_eta: '+7 mins (38 mins total)',
+      };
+      setEmailDispatched(email);
+
+      playSuccessChime();
+
+      if (response.data?.agent_steps) {
+        setAgentSteps((prev) => [...prev, ...response.data.agent_steps]);
+      }
+
+      setGraphState((prev) => ({
+        ...prev,
+        current_route: 'route_101_express',
+        tool_status: 'success_rerouted',
+        phase: 2,
+      }));
+    }, 1500);
+  };
+
+  // Reset to initial baseline
+  const handleReset = () => {
+    setDisruptionState('idle');
+    setReroutePolyline(null);
+    setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
+    setRouteStats({ distanceKm: 33.8, etaMinutes: 34 });
+    setEmailDispatched(null);
+    setAgentSteps([
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        node: 'system',
+        type: 'INFO',
+        content: 'System telemetry reset. Corridor cleared for new dispatch mission.',
+      },
+    ]);
+    setGraphState({
+      messages: [],
+      tool_status: 'nominal',
+      current_route: 'route_99',
+      phase: 1,
+    });
+  };
+
+  return (
+    <div className="relative min-h-screen w-full bg-dark-950 text-slate-100 flex flex-col selection:bg-cyan-500/30">
+      {/* 3D Particle Constellation & Cyber Grid Background */}
+      <ThreeBackground />
+
+      {/* Top Telemetry Header with Live Weather & Port Badges */}
+      <Header
+        activePhase={graphState.phase}
+        agentActive={isProcessing}
+        liveWeather={liveWeather}
+      />
+
+      {/* Main Command Center Dashboard */}
+      <main className="relative z-10 flex-1 p-3 md:p-5 flex flex-col space-y-3 max-w-[1700px] mx-auto w-full">
+        {/* Urgent Pulsing Alert Banner */}
+        <DisruptionBanner
+          disruptionState={disruptionState}
+          onTriggerReroute={handleAutonomousReroute}
+          disruptedRoute="NH-16 (Route 99)"
+          resolvedRoute="Route 101 (Daya Canal Bypass)"
+        />
+
+        {/* Split Layout: Map (Left) / Agent Feed (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-[620px]">
+          {/* Left Column (7 Cols) */}
+          <div className="lg:col-span-7 flex flex-col space-y-3">
+            {/* Interactive Leaflet Map with Smooth Live GPS Tracking */}
+            <div className="h-[460px] md:h-[500px] w-full">
+              <MapView
+                startPoint={startPoint}
+                destinationPoint={destinationPoint}
+                primaryPolyline={primaryPolyline}
+                reroutePolyline={reroutePolyline}
+                disruptionState={disruptionState}
+                disruptionZones={DISRUPTION_ZONES}
+                settingPointType={settingPointType}
+                setSettingPointType={setSettingPointType}
+                onPointSelected={handlePointSelected}
+              />
+            </div>
+
+            {/* Real-time Telemetry Stats Card */}
+            <RouteStatsCard
+              activeRouteName={graphState.current_route}
+              disruptionState={disruptionState}
+              distanceKm={routeStats.distanceKm}
+              etaMinutes={routeStats.etaMinutes}
+            />
+
+            {/* Control Panel with Mobile Driver Webhook Button */}
+            <ControlPanel
+              onComputeRoute={handleComputePhase1}
+              onTriggerDisruption={handleTriggerDisruption}
+              onAutonomousReroute={handleAutonomousReroute}
+              onReset={handleReset}
+              disruptionState={disruptionState}
+              isProcessing={isProcessing}
+              startPoint={startPoint}
+              destinationPoint={destinationPoint}
+              onSelectPreset={handleSelectPreset}
+            />
+          </div>
+
+          {/* Right Column: Sleek Agent Activity Feed (5 Cols) */}
+          <div className="lg:col-span-5 h-[580px] lg:h-auto flex flex-col">
+            <AgentFeed
+              steps={agentSteps}
+              currentState={graphState}
+              isStreaming={isProcessing}
+              emailDispatched={emailDispatched}
+            />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
