@@ -12,6 +12,10 @@
 > **Autonomous logistics orchestration and disaster rerouting powered by LangGraph, Google Gemini, OpenRouteService, and OpenWeatherMap.**  
 > Built for the **AHNDKA Hackathon** at **IIT Bhubaneswar**.
 
+<p align="center">
+  <img src="./assets/1.png" alt="NEXUS Command Center - Autonomous Supply Chain Orchestration" width="100%" />
+</p>
+
 ---
 
 ## 🌟 Executive Summary
