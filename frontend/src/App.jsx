@@ -10,6 +10,8 @@ import {
   PRESET_HUBS,
   DEFAULT_PRIMARY_ROUTE,
   DEFAULT_REROUTE_CORRIDOR,
+  DEFAULT_TERTIARY_CORRIDOR,
+  DEFAULT_QUATERNARY_CORRIDOR,
   DISRUPTION_ZONES,
   generateCurvedRoute,
   calculateHaversineDistanceKm,
@@ -298,38 +300,67 @@ export default function App() {
     setIsProcessing(true);
     setDisruptionState('rerouting');
 
-    // Dynamically calculate bypass waypoint relative to start and dest
+    // Multi-tier escalation check: If Route 101 / Highway 1 is already active or reported blocked
+    const hazardStr = activeHazard ? `${activeHazard.location} ${activeHazard.description}` : '';
+    const isCurrent101 = graphState.current_route === 'route_101_express';
+    const mentions101 = /hwy 1|sh 1|highway 1|daya|canal|route 101/i.test(hazardStr);
+    const is101Blocked = isCurrent101 || mentions101 || graphState.blocked_corridors?.includes('route_101_express');
+
+    let targetRouteId = 'route_101_express';
+    let targetRouteName = 'Route 101 (Daya Canal Bypass)';
+    let bypassVia = [20.1980, 85.7950];
+    let fallbackPolyline = DEFAULT_REROUTE_CORRIDOR;
+
+    if (is101Blocked) {
+      targetRouteId = 'route_202_outer_ring';
+      targetRouteName = 'Route 202 (Pipili Outer Bypass)';
+      bypassVia = [20.1700, 85.8200];
+      fallbackPolyline = DEFAULT_TERTIARY_CORRIDOR;
+    }
+
     const isNearBhubaneswar = startPoint.coords[1] > 85.7 && destinationPoint.coords[1] > 85.6;
-    const bypassVia = isNearBhubaneswar
-      ? [20.1980, 85.7950] // Daya West Canal Green Bypass
+    const finalBypassVia = isNearBhubaneswar
+      ? bypassVia
       : [
-          (startPoint.coords[0] + destinationPoint.coords[0]) / 2 + 0.018,
-          (startPoint.coords[1] + destinationPoint.coords[1]) / 2 + 0.024,
+          (startPoint.coords[0] + destinationPoint.coords[0]) / 2 + (is101Blocked ? 0.028 : 0.018),
+          (startPoint.coords[1] + destinationPoint.coords[1]) / 2 + (is101Blocked ? 0.038 : 0.024),
         ];
 
     // Query real OpenRouteService bypass road geometry
     const bypassData = await fetchLiveDirections(
       startPoint.coords,
       destinationPoint.coords,
-      bypassVia
+      finalBypassVia
     );
 
     const incidentTitle = activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock & Disruption';
     const hazardDesc = activeHazard 
       ? `${incidentTitle} at ${activeHazard.location}: ${activeHazard.description}`
-      : 'Driver hazard report on primary corridor';
+      : 'Driver hazard report on active corridor';
+
+    const currentBlockedList = Array.from(new Set([
+      ...(graphState.blocked_corridors || ['route_99']),
+      graphState.current_route || 'route_99'
+    ]));
 
     // Call orchestrator
     const response = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
-      currentRouteId: 'route_primary',
+      currentRouteId: graphState.current_route || 'route_99',
+      blockedCorridors: currentBlockedList,
       disruptionType: hazardDesc,
       prompt:
-        `Emergency reroute from ${startPoint.name} to ${destinationPoint.name}. Primary road blocked due to ${hazardDesc}. Calculate green bypass corridor and notify stakeholders.`,
+        `Emergency reroute from ${startPoint.name} to ${destinationPoint.name}. Current corridor compromised (${hazardDesc}). Blocked corridors: [${currentBlockedList.join(', ')}]. Calculate next available bypass arterial without looping back to blocked corridors.`,
     });
 
     setTimeout(() => {
+      const backendFinal = response.data?.final_route;
+      const finalRouteId = backendFinal || targetRouteId;
+      const backendEmail = response.data?.email_dispatched;
+      const finalRouteName = backendEmail?.alternative_route || targetRouteName;
+      const nextBlocked = response.data?.state?.blocked_corridors || [...currentBlockedList, finalRouteId];
+
       if (bypassData && bypassData.polyline && bypassData.polyline.length > 1) {
         setReroutePolyline(bypassData.polyline);
         setRouteStats({
@@ -337,12 +368,12 @@ export default function App() {
           etaMinutes: Math.round(bypassData.duration_min),
         });
       } else {
-        const fallbackBypass = generateCurvedRoute(startPoint.coords, destinationPoint.coords, bypassVia);
-        const distKm = Math.round(calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords) * 1.15 * 10) / 10;
-        setReroutePolyline(fallbackBypass);
+        const poly = fallbackPolyline || generateCurvedRoute(startPoint.coords, destinationPoint.coords, finalBypassVia);
+        const distKm = Math.round(calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords) * (is101Blocked ? 1.25 : 1.15) * 10) / 10;
+        setReroutePolyline(poly);
         setRouteStats({
           distanceKm: distKm,
-          etaMinutes: Math.max(8, Math.round((distKm / 45) * 60)),
+          etaMinutes: Math.max(10, Math.round((distKm / 42) * 60)),
         });
       }
 
@@ -351,13 +382,13 @@ export default function App() {
 
       const fallbackEmailReason = activeHazard 
         ? `${incidentTitle}: ${activeHazard.description} (${activeHazard.location})`
-        : 'Driver Reported Road Disruption on NH-16';
+        : 'Driver Reported Road Disruption on Active Corridor';
 
-      const email = response.data?.email_dispatched || {
+      const email = backendEmail || {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
         reason: fallbackEmailReason,
-        alternative_route: 'Route 101 Express Bypass Corridor',
-        new_eta: '+7 mins (38 mins total)',
+        alternative_route: finalRouteName,
+        new_eta: is101Blocked ? '+13 mins (47 mins total)' : '+7 mins (38 mins total)',
       };
       setEmailDispatched(email);
 
@@ -369,7 +400,9 @@ export default function App() {
 
       setGraphState((prev) => ({
         ...prev,
-        current_route: 'route_101_express',
+        current_route: finalRouteId,
+        current_route_name: finalRouteName,
+        blocked_corridors: nextBlocked,
         tool_status: 'success_rerouted',
         phase: 2,
       }));
@@ -397,6 +430,8 @@ export default function App() {
       messages: [],
       tool_status: 'nominal',
       current_route: 'route_99',
+      current_route_name: 'NH-16 (Route 99)',
+      blocked_corridors: [],
       phase: 1,
     });
   };
@@ -420,7 +455,7 @@ export default function App() {
           disruptionState={disruptionState}
           onTriggerReroute={handleAutonomousReroute}
           disruptedRoute="NH-16 (Route 99)"
-          resolvedRoute="Route 101 (Daya Canal Bypass)"
+          resolvedRoute={graphState.current_route_name || "Route 101 (Daya Canal Bypass)"}
           activeHazard={activeHazard}
         />
 

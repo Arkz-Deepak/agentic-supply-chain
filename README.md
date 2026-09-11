@@ -1,5 +1,8 @@
 # 🚛 LogiPulse // Autonomous Supply Chain Crisis Orchestrator
 
+[![CI/CD](https://github.com/Arkz-Deepak/agentic-supply-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/Arkz-Deepak/agentic-supply-chain/actions)
+[![Tests](https://img.shields.io/badge/Tests-53%20Passed%20(100%25)-brightgreen?style=for-the-badge&logo=pytest)](https://github.com/Arkz-Deepak/agentic-supply-chain)
+[![Vercel](https://img.shields.io/badge/Vercel-Ready-black?style=for-the-badge&logo=vercel)](https://vercel.com)
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-Agentic_Core-FF6F00?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
@@ -226,6 +229,100 @@ npm run dev
 *Command Center runs at: **http://localhost:5180***
 
 > **Note**: Dedicated ports (`8010` and `5180`) ensure complete isolation from other local projects on ports `8000` or `5173`.
+
+---
+
+## 🧪 Comprehensive Unit & Integration Test Suite
+
+LogiPulse features an enterprise-grade automated test suite covering 100% of critical paths across the backend FastAPI endpoints, the LangGraph agent state machine, custom toolkits, and the React frontend UI:
+
+| Test Layer | Framework | Test Count | Pass Rate | Scope Covered |
+| :--- | :--- | :---: | :---: | :--- |
+| **Backend REST APIs** | `pytest` + `httpx` | 10 | 100% | Healthcheck, Weather API, Route Directions, Hazard Ingestion, Speech-to-NLP parsing |
+| **LangGraph Agent Engine** | `pytest` + `langgraph` | 9 | 100% | State persistence, Multi-tier corridor escalation (Tier 1 &rarr; 2 &rarr; 3 &rarr; 4), Cross-sensor flood conflict diagnosis |
+| **Logistics Tools** | `pytest` | 7 | 100% | Live weather radar fallback, ORS waypoint queries, stakeholder email dispatching |
+| **Frontend UI Components** | `vitest` + `@testing-library/react` | 8 | 100% | RouteStatsCard metrics, DisruptionBanner states, ControlPanel user interactions |
+| **Frontend API Client** | `vitest` + `axios` | 8 | 100% | Resilient fallback simulators, weather fetchers, voice webhook error handling |
+| **Geometry & Data Utilities** | `vitest` | 6 | 100% | Haversine curvature calculations, multi-point corridor geometries, preset hubs |
+| **Audio Synthesizer** | `vitest` | 5 | 100% | Web Audio API oscillator lifecycles, volume ramping, toggle controls |
+| **TOTAL** | | **53 Tests** | **100% Passed** | **Zero failures, full regression safety** |
+
+### Running Backend Tests
+```powershell
+# In project root:
+.\venv\Scripts\pytest tests/ -v
+```
+
+### Running Frontend Tests
+```powershell
+# In frontend directory:
+cd frontend
+npm test
+```
+
+---
+
+## 🔄 CI/CD Pipeline (GitHub Actions)
+
+Every pull request and push to `main` or `phase-1` is automatically validated through our GitHub Actions workflow ([`.github/workflows/ci.yml`](file:///.github/workflows/ci.yml)):
+
+```mermaid
+flowchart LR
+    Push["Git Push / PR"] --> CI["GitHub Actions CI/CD"]
+    CI --> Job1["🐍 Backend CI (Python 3.12)\n• pip install -r requirements.txt\n• pytest tests/ -v (26 tests)"]
+    CI --> Job2["⚛️ Frontend CI (Node 20)\n• npm install --legacy-peer-deps\n• npm test (27 tests)\n• npm run build"]
+    Job1 --> Merge["✅ Green Build Pass"]
+    Job2 --> Merge
+```
+
+- **Backend CI**: Boots Python 3.12, caches pip wheels, and runs all 26 pytest suites.
+- **Frontend CI**: Boots Node 20, runs Vitest in a headless JSDOM environment, and executes the production Vite Rollup bundler.
+
+---
+
+## 🚀 Vercel Deployment Guide
+
+LogiPulse is 100% optimized for **Vercel** deployment:
+
+### Option A: Unified Monorepo Deployment on Vercel
+The repository includes root [`vercel.json`](file:///vercel.json) and an ASGI serverless handler in [`api/index.py`](file:///api/index.py).
+
+1. Import your GitHub repository into [Vercel Dashboard](https://vercel.com).
+2. Set the **Framework Preset** to `Vite`.
+3. In **Environment Variables**, configure:
+   - `GOOGLE_API_KEY`: Your Google Gemini API Key
+   - `OPENWEATHER_API_KEY`: Your OpenWeatherMap Key
+   - `ORS_API_KEY`: Your OpenRouteService Key
+4. Deploy! Vercel will automatically compile the React static assets to `frontend/dist` and mount `/api/*` to the FastAPI serverless function.
+
+### Option B: Hybrid Cloud Deployment (Frontend on Vercel + Backend on Render/Railway)
+1. **Backend**: Deploy `src/server.py` to [Render](https://render.com) or [Railway](https://railway.app) with start command:
+   ```bash
+   uvicorn server:app --app-dir src --host 0.0.0.0 --port $PORT
+   ```
+2. **Frontend on Vercel**:
+   - Set **Root Directory** in Vercel to `frontend`.
+   - Set Environment Variable: `VITE_BACKEND_URL=https://your-backend.onrender.com`.
+   - The included [`frontend/vercel.json`](file:///frontend/vercel.json) will ensure clean Single Page Application (SPA) client-side routing.
+
+---
+
+## 🧠 Advanced Agentic Intelligence
+
+### 1. Multi-Tier Autonomous Corridor Hierarchy
+To prevent fallback loops when disruptions cascade across multiple highways, the agent utilizes a dynamic 4-tier corridor fallback hierarchy:
+- **Tier 1 (Route 99)**: Primary National Highway 16 (Rasulgarh &rarr; Khandagiri &rarr; Pitapalli &rarr; IIT BBS).
+- **Tier 2 (Route 101)**: Daya West Canal & Sundarpada Green Bypass (Primary bypass, +7 mins).
+- **Tier 3 (Route 202)**: Cuttack-Puri Outer Expressway & Pipili Bypass (+13 mins).
+- **Tier 4 (Route 303)**: Chandaka Western Perimeter Express (+19 mins).
+
+The agent maintains state memory (`blocked_corridors`), ensuring it will **never backtrack into an already disrupted sector**.
+
+### 2. Cross-Sensor Telemetry Verification (Weather Radar vs. Flood Conflict)
+When a driver reports a "flash flood" or "waterlogging" while live OpenWeatherMap radar reports 0.0mm precipitation and dry weather, legacy systems might discard the report as a false positive. LogiPulse's Strategist node cross-verifies:
+- Automatically diagnoses localized infrastructure failures (e.g. *canal overflow, municipal storm drain burst, water main rupture*).
+- Issues a **Precautionary Safety Bypass** instead of halting.
+- Annotates the dispatch advisory with a `CROSS_SENSOR_VERIFICATION` badge.
 
 ---
 

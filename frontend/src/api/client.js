@@ -79,6 +79,7 @@ export async function orchestrateRoute({
   startPoint,
   destination,
   currentRouteId,
+  blockedCorridors = [],
   disruptionType,
   prompt,
   truckTelemetry,
@@ -94,6 +95,7 @@ export async function orchestrateRoute({
     ],
     state: {
       current_route: currentRouteId || 'route_99',
+      blocked_corridors: blockedCorridors,
       tool_status: disruptionType ? 'disrupted' : 'operational',
       start_point: startPoint,
       destination: destination,

@@ -55,6 +55,26 @@ export const DEFAULT_REROUTE_CORRIDOR = [
   [20.1484, 85.6711], // IIT Bhubaneswar Main Campus (Argul)
 ];
 
+// Tertiary corridor: Route 202 (Cuttack-Puri Outer Expressway & Pipili Bypass)
+export const DEFAULT_TERTIARY_CORRIDOR = [
+  [20.3010, 85.8640], // Rasulgarh Hub
+  [20.2450, 85.8650], // Uttara Junction
+  [20.1900, 85.8500], // Pipili Outer Link
+  [20.1700, 85.8200], // Pipili - Jatni Freight Corridor
+  [20.1550, 85.7400], // Jatni Eastern Bypass
+  [20.1484, 85.6711], // IIT Bhubaneswar Main Campus (Argul)
+];
+
+// Quaternary corridor: Route 303 (Chandaka Forest Logistics Corridor)
+export const DEFAULT_QUATERNARY_CORRIDOR = [
+  [20.3010, 85.8640], // Rasulgarh Hub
+  [20.3200, 85.8200], // Infocity / Patia Arterial
+  [20.2950, 85.7500], // Chandaka Perimeter Waypoint
+  [20.2500, 85.7100], // Western Forest Arterial
+  [20.1900, 85.6800], // Jatni North Link
+  [20.1484, 85.6711], // IIT Bhubaneswar Main Campus (Argul)
+];
+
 // Disruption Zone coordinates (Flash flood & highway strike on NH-16 Route 99)
 export const DISRUPTION_ZONES = [
   {
@@ -62,9 +82,18 @@ export const DISRUPTION_ZONES = [
     center: [20.2450, 85.7650], // Near Khandagiri / Tamando NH-16 Sector
     radiusMeters: 2800,
     severity: 'CRITICAL',
-    name: 'NH-16 Khandagiri Sector Strike & Monsoon Flash Flood',
+    name: 'NH-16 Khandagiri Sector Strike & Roadblock',
     affectedRoute: 'route_99',
-    details: 'Heavy waterlogging (4ft) & transport strike. NH-16 westbound carriageway impassable.',
+    details: 'Multi-vehicle collision & transport strike. NH-16 westbound carriageway impassable.',
+  },
+  {
+    id: 'block_101',
+    center: [20.2100, 85.8150], // Daya Canal / State Highway 1 Link
+    radiusMeters: 2200,
+    severity: 'CRITICAL',
+    name: 'Daya Canal / SH-1 Secondary Disruption',
+    affectedRoute: 'route_101_express',
+    details: 'Reported secondary obstruction on State Highway 1 / Daya Canal route.',
   },
 ];
 

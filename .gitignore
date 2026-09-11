@@ -11,6 +11,8 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+*.xml
+*.log
 
 # Node & Frontend
 frontend/node_modules/
