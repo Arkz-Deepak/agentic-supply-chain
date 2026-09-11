@@ -348,7 +348,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-dark-950 text-slate-100 flex flex-col selection:bg-cyan-500/30">
+    <div className="relative min-h-screen w-full bg-gradient-to-br from-slate-50 via-sky-50/60 to-blue-50/40 text-slate-900 flex flex-col selection:bg-sky-500/20 selection:text-sky-900">
       {/* 3D Particle Constellation & Cyber Grid Background */}
       <ThreeBackground />
 
