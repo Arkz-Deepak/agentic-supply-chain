@@ -31,18 +31,11 @@ app = FastAPI(
     description="FastAPI backend with LangGraph, Voice NLP Parsing, OpenWeatherMap, OpenRouteService, and automated email dispatch."
 )
 
-# CORS configured for port 5180 (and 5173 fallback)
+# CORS configured for localhost dev, Vercel deployments, and custom domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5180",
-        "http://127.0.0.1:5180",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "*"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -726,4 +719,5 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
         }
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8010, reload=True)
+    port = int(os.environ.get("PORT", 8010))
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)

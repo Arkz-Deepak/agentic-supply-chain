@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// FastAPI backend configuration running on port 8010
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8010';
+// FastAPI backend configuration: accepts VITE_BACKEND_URL or VITE_API_URL with trailing slash stripped
+const RAW_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:8010';
+const BACKEND_URL = RAW_URL.replace(/\/+$/, '');
 
 export const apiClient = axios.create({
   baseURL: BACKEND_URL,
