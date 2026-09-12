@@ -204,8 +204,8 @@ export default function MapView({
   const startIcon = useMemo(() => createCustomIcon('#059669', 'A', true), []);
   const destIcon = useMemo(() => createCustomIcon('#0284C7', 'B', true), []);
 
-  // Center around Bhubaneswar & IIT Bhubaneswar
-  const defaultCenter = [20.22, 85.76];
+  // Dynamic center based on active start point
+  const defaultCenter = startPoint?.coords || [13.0838, 80.2980];
 
   // Active path for the truck animation
   const activePath = useMemo(() => {
@@ -243,8 +243,8 @@ export default function MapView({
       const baseSpeed = disruptionState === 'resolved' ? 0.011 : 0.0085;
 
       if (disruptionState === 'detected') {
-        // Truck halts smoothly before the Khandagiri hazard zone (~35% into primary route)
-        const haltTarget = 0.35;
+        // Truck halts smoothly before the hazard zone (using dynamic hazard position or live position)
+        const haltTarget = activeHazard?.progressFraction ? Math.max(0.08, activeHazard.progressFraction - 0.04) : 0.35;
         if (progressRef.current < haltTarget) {
           progressRef.current = Math.min(haltTarget, progressRef.current + delta * 0.03);
         } else if (progressRef.current > haltTarget + 0.05) {
@@ -340,19 +340,23 @@ export default function MapView({
         <div className="hidden sm:flex items-center gap-3 pointer-events-auto bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-sans shadow-md">
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-4 rounded bg-sky-500 inline-block shadow-sm"></span>
-            <span className="text-slate-700 font-medium">NH-16 Route 99</span>
+            <span className="text-slate-700 font-medium">
+              {startPoint?.shortName && destinationPoint?.shortName
+                ? `${startPoint.shortName} → ${destinationPoint.shortName}`
+                : 'Primary Freight Route'}
+            </span>
           </div>
           {disruptionState !== 'idle' && (
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-4 rounded bg-emerald-500 inline-block shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
-              <span className="text-emerald-700 font-medium">Daya Canal Bypass</span>
+              <span className="text-emerald-700 font-medium">Dynamic Green Bypass</span>
             </div>
           )}
           {disruptionState === 'detected' && (
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-ping"></span>
               <span className="text-rose-600 font-bold uppercase">
-                {activeHazard?.incident_type ? `${activeHazard.incident_type.replace(/_/g, ' ')} ALERT` : 'Khandagiri Blockade'}
+                {activeHazard?.incident_type ? `${activeHazard.incident_type.replace(/_/g, ' ')} ALERT` : 'ROAD HAZARD ALERT'}
               </span>
             </div>
           )}
@@ -460,43 +464,52 @@ export default function MapView({
             </>
           )}
 
-        {/* Disruption Hazard Zone (NH-16 Khandagiri Blockade) */}
-        {disruptionState !== 'idle' &&
-          disruptionZones?.map((zone) => (
-            <React.Fragment key={zone.id}>
+        {/* Dynamic Disruption Hazard Zone */}
+        {disruptionState !== 'idle' && (() => {
+          const hazardCenter = activeHazard?.coords || (disruptionZones && disruptionZones[0]?.center) || [13.0640, 80.1650];
+          const hazardName = activeHazard?.location || (activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock Area');
+          const hazardDetails = activeHazard?.description || 'Freight corridor obstruction reported by fleet telemetry';
+          const incidentBadge = activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'HAZARD ZONE';
+
+          return (
+            <React.Fragment key="dynamic_hazard_zone">
               <Circle
-                center={zone.center}
-                radius={zone.radiusMeters}
+                center={hazardCenter}
+                radius={2400}
                 pathOptions={{
                   color: '#E11D48',
                   fillColor: '#F43F5E',
-                  fillOpacity: 0.18,
+                  fillOpacity: 0.20,
                   weight: 2,
                   dashArray: '4, 6',
                 }}
               />
               <Circle
-                center={zone.center}
-                radius={zone.radiusMeters * 0.45}
+                center={hazardCenter}
+                radius={1100}
                 pathOptions={{
                   color: '#BE123C',
                   fillColor: '#E11D48',
-                  fillOpacity: 0.4,
+                  fillOpacity: 0.45,
                   weight: 2,
                 }}
               >
                 <Popup>
                   <div className="font-sans text-xs">
                     <span className="font-bold text-rose-700 uppercase">
-                      DISRUPTION ZONE &bull; {activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'ACTIVE HAZARD'}
+                      DISRUPTION ZONE &bull; {incidentBadge}
                     </span>
-                    <p className="font-semibold text-slate-900">{activeHazard?.location || zone.name}</p>
-                    <p className="text-[10px] text-rose-700">{activeHazard?.description || zone.details}</p>
+                    <p className="font-semibold text-slate-900">{hazardName}</p>
+                    <p className="text-[10px] text-rose-700">{hazardDetails}</p>
+                    <p className="text-[9px] text-slate-500 font-mono mt-0.5">
+                      GPS: [{hazardCenter[0].toFixed(4)}, {hazardCenter[1].toFixed(4)}]
+                    </p>
                   </div>
                 </Popup>
               </Circle>
             </React.Fragment>
-          ))}
+          );
+        })()}
 
         {/* Live Animated Truck Marker (Controlled Calm Pace) */}
         {truckPos && (
@@ -505,14 +518,14 @@ export default function MapView({
               <div className="font-sans text-xs">
                 <span className="font-bold text-sky-700">CARRIER UNIT TRK-8821</span>
                 <p className="text-slate-800 font-medium">
-                  Destination: {destinationPoint?.shortName || 'IIT Bhubaneswar'}
+                  Destination: {destinationPoint?.shortName || 'Destination Hub'}
                 </p>
                 <p className="text-slate-600 text-[11px] mt-0.5">
                   Status:{' '}
                   {isHalted
-                    ? `⚠️ EMERGENCY STOP - ${activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'NH-16 BLOCKED'}`
+                    ? `⚠️ EMERGENCY STOP - ${activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'OBSTRUCTION DETECTED'}`
                     : isBypass
-                    ? '🚀 NAVIGATING DAYA CANAL BYPASS'
+                    ? '🚀 NAVIGATING AUTONOMOUS BYPASS'
                     : 'EN ROUTE'}
                 </p>
               </div>

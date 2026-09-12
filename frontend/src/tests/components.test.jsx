@@ -145,7 +145,7 @@ describe('ControlPanel Component', () => {
     fireEvent.click(phase1Btn);
     expect(handleCompute).toHaveBeenCalledTimes(1);
 
-    const presetBtn = screen.getByRole('button', { name: /Bhubaneswar → IIT BBS/i });
+    const presetBtn = screen.getByRole('button', { name: /Chennai Port → Oragadam/i });
     expect(presetBtn).toBeInTheDocument();
     fireEvent.click(presetBtn);
     expect(handlePreset).toHaveBeenCalledWith(PRESET_HUBS[0], PRESET_HUBS[1]);

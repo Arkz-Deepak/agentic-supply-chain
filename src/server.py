@@ -386,31 +386,88 @@ CORRIDOR_HIERARCHY = [
     }
 ]
 
-def resolve_corridor_selection(current_route: str, previous_blocked: list, user_message: str, live_hazards: list):
+CHENNAI_CORRIDOR_HIERARCHY = [
+    {
+        "id": "chennai_port_arterial",
+        "name": "Chennai Port Expressway (via Maduravoyal & NH-48)",
+        "short_name": "Chennai Port Express",
+        "via": [13.0640, 80.1650],
+        "eta_label": "+0 mins (42 mins total)",
+        "identifiers": ["chennai port", "maduravoyal", "nh-48", "nh 48", "primary", "chennai_port_arterial", "route_primary"]
+    },
+    {
+        "id": "route_101_express",
+        "name": "Chennai Outer Ring Road (ORR Green Express Bypass)",
+        "short_name": "Chennai ORR Bypass",
+        "via": [13.0450, 80.0550],
+        "eta_label": "+7 mins (49 mins total)",
+        "identifiers": ["orr", "outer ring", "thirumazhisai", "puzhal", "bypass alpha", "route_101_express", "hwy 1", "highway 1"]
+    },
+    {
+        "id": "route_202_outer_ring",
+        "name": "Route 202: Sriperumbudur & Singaperumal Koil Logistics Arterial (Bypass Beta)",
+        "short_name": "Sriperumbudur Arterial",
+        "via": [12.9450, 79.9950],
+        "eta_label": "+13 mins (55 mins total)",
+        "identifiers": ["sriperumbudur", "sh57", "sh 57", "singaperumal", "bypass beta", "route_202_outer_ring"]
+    },
+    {
+        "id": "route_303_chandaka",
+        "name": "Route 303: Manali & Ennore Coastal Intermodal Freight Link (Bypass Gamma)",
+        "short_name": "Manali Coastal Link",
+        "via": [13.1800, 80.2400],
+        "eta_label": "+19 mins (61 mins total)",
+        "identifiers": ["manali", "ennore", "coastal", "bypass gamma", "route_303_chandaka"]
+    }
+]
+
+def resolve_corridor_selection(
+    current_route: str,
+    previous_blocked: list,
+    user_message: str,
+    live_hazards: list,
+    start_pt: dict = None,
+    dest_pt: dict = None
+):
     """
     Intelligently determines the next viable corridor, preventing fallback loops.
+    Dynamically routes for Chennai Port, Odisha, or custom coordinates.
     """
     blocked = set(previous_blocked or [])
     combined_text = f"{user_message} {' '.join(live_hazards)}".lower()
-    
-    for corridor in CORRIDOR_HIERARCHY:
+
+    # Determine regional hierarchy
+    is_chennai = False
+    if start_pt and isinstance(start_pt.get("coords"), (list, tuple)) and len(start_pt["coords"]) >= 1:
+        if start_pt["coords"][0] < 16.0:
+            is_chennai = True
+    elif "chennai" in combined_text or "maduravoyal" in combined_text or "oragadam" in combined_text:
+        is_chennai = True
+
+    active_hierarchy = CHENNAI_CORRIDOR_HIERARCHY if is_chennai else CORRIDOR_HIERARCHY
+
+    for corridor in active_hierarchy:
         for ident in corridor["identifiers"]:
             if ident in combined_text:
                 blocked.add(corridor["id"])
                 break
 
     if live_hazards or any(k in user_message.lower() for k in ["problem", "block", "strike", "flood", "hazard", "reroute", "divert"]):
-        if current_route and current_route != "route_99":
+        if current_route and current_route not in ["route_99", "chennai_port_arterial", "route_primary"]:
             blocked.add(current_route)
-        blocked.add("route_99")
-        
-    for corridor in CORRIDOR_HIERARCHY:
+        if is_chennai:
+            blocked.add("chennai_port_arterial")
+            blocked.add("route_primary")
+        else:
+            blocked.add("route_99")
+
+    for corridor in active_hierarchy:
         if corridor["id"] not in blocked:
             return corridor, list(blocked)
-            
-    return CORRIDOR_HIERARCHY[-1], list(blocked)
 
-def check_weather_flood_telemetry(hazard_text: str):
+    return active_hierarchy[-1], list(blocked)
+
+def check_weather_flood_telemetry(hazard_text: str, lat: float = 13.0838, lon: float = 80.2980):
     """
     Cross-references driver reports of flooding/waterlogging against live weather API.
     Detects if driver says flood when weather radar confirms zero rainfall.
@@ -419,19 +476,19 @@ def check_weather_flood_telemetry(hazard_text: str):
     is_flood = any(w in lower for w in ["flood", "water", "waterlog", "drown", "submerged"])
     if not is_flood:
         return None
-        
+
     api_key = get_weather_key()
     weather_desc = "broken clouds"
-    temp = 27.2
+    temp = 28.5
     is_raining = False
-    
+
     if api_key:
         try:
-            r = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat=20.1484&lon=85.6711&appid={api_key}&units=metric", timeout=3)
+            r = requests.get(f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric", timeout=3)
             if r.status_code == 200:
                 data = r.json()
                 weather_desc = data.get("weather", [{}])[0].get("description", "broken clouds")
-                temp = data.get("main", {}).get("temp", 27.2)
+                temp = data.get("main", {}).get("temp", 28.5)
                 rain_1h = data.get("rain", {}).get("1h", 0.0)
                 is_raining = rain_1h > 0 or any(w in weather_desc.lower() for w in ["rain", "drizzle", "storm"])
         except Exception:
@@ -444,8 +501,8 @@ def check_weather_flood_telemetry(hazard_text: str):
             "temp_c": temp,
             "reasoning": (
                 f"CROSS-SENSOR AUDIT: Driver reported waterlogging/flooding, but live OpenWeatherMap radar confirms 0.0mm rainfall and dry skies ({weather_desc}, {temp}°C). "
-                f"AGENT DIAGNOSIS: Corroborated as localized non-meteorological infrastructure failure (e.g., Daya canal irrigation breach, municipal storm drain collapse, or water main rupture). "
-                f"Hazard confirmed impassable for low-clearance trucks. Precautionary diversion authorized."
+                f"AGENT DIAGNOSIS: Corroborated as localized non-meteorological infrastructure failure (e.g., canal overflow, municipal storm drain collapse, or water main rupture). "
+                f"Hazard confirmed impassable for low-clearance freight trucks. Precautionary diversion authorized."
             ),
             "email_note": "[Weather Radar Audit: 0.0mm Rain — Localized Canal/Drainage Breach Verified]"
         }
@@ -481,23 +538,27 @@ async def orchestrate_dispatch(request: OrchestrateRequest):
 
     dynamic_reason = latest_hazard if latest_hazard else ("Active corridor disruption" if is_blocked else "Nominal transit")
 
+    start_coords = start_pt.get("coords", [13.0838, 80.2980])
+    w_lat = float(start_coords[0]) if isinstance(start_coords, (list, tuple)) and len(start_coords) >= 1 else 13.0838
+    w_lon = float(start_coords[1]) if isinstance(start_coords, (list, tuple)) and len(start_coords) >= 2 else 80.2980
+
     # Multi-tier route resolution
     selected_corridor, updated_blocked = resolve_corridor_selection(
-        current_route, previous_blocked, user_message, LIVE_HAZARD_REPORTS
+        current_route, previous_blocked, user_message, LIVE_HAZARD_REPORTS, start_pt=start_pt, dest_pt=dest_pt
     )
     final_route = selected_corridor["id"] if is_blocked else current_route
     corridor_name = selected_corridor["name"]
     corridor_eta = selected_corridor["eta_label"]
 
     # Weather vs Flood cross-validation check
-    flood_audit = check_weather_flood_telemetry(dynamic_reason)
+    flood_audit = check_weather_flood_telemetry(dynamic_reason, lat=w_lat, lon=w_lon)
     email_reason = dynamic_reason
     if flood_audit:
         email_reason = f"{dynamic_reason} {flood_audit['email_note']}"
 
     try:
         system_instruction = (
-            f"You are the LogiPulse Autonomous Supply Chain Dispatch Agent at IIT Bhubaneswar. "
+            f"You are the LogiPulse Autonomous Supply Chain Dispatch Agent. "
             f"Carrier TRK-8821 is delivering cargo from {start_name} to {dest_name}. "
             f"{hazard_context} "
             f"Check crowdsourced traffic reports using get_crowdsourced_traffic. If any hazard is reported, "

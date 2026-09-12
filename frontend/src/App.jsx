@@ -15,6 +15,8 @@ import {
   DISRUPTION_ZONES,
   generateCurvedRoute,
   calculateHaversineDistanceKm,
+  calculateOrthogonalBypassPoint,
+  interpolatePolylineCoordinate,
 } from './data/mockRoutes';
 import {
   orchestrateRoute,
@@ -30,17 +32,17 @@ import {
 } from './utils/soundEffects';
 
 export default function App() {
-  // Hubs & Routing Coordinates
-  const [startPoint, setStartPoint] = useState(PRESET_HUBS[0]); // Bhubaneswar Depot
-  const [destinationPoint, setDestinationPoint] = useState(PRESET_HUBS[1]); // IIT BBS
+  // Hubs & Routing Coordinates (Defaults to Chennai Port -> Oragadam Industrial Corridor)
+  const [startPoint, setStartPoint] = useState(PRESET_HUBS[0]);
+  const [destinationPoint, setDestinationPoint] = useState(PRESET_HUBS[1]);
   const [primaryPolyline, setPrimaryPolyline] = useState(DEFAULT_PRIMARY_ROUTE);
   const [reroutePolyline, setReroutePolyline] = useState(null);
 
   // Live real data state
   const [liveWeather, setLiveWeather] = useState(null);
   const [routeStats, setRouteStats] = useState({
-    distanceKm: 33.8,
-    etaMinutes: 34,
+    distanceKm: 42.5,
+    etaMinutes: 44,
   });
 
   // Map interactive point placement state
@@ -73,15 +75,17 @@ export default function App() {
       },
     ],
     tool_status: 'nominal',
-    current_route: 'route_99',
+    current_route: 'chennai_port_arterial',
+    current_route_name: 'Chennai Port Express Arterial',
+    blocked_corridors: [],
     phase: 1,
   });
 
   // Fetch real weather and initial route on mount
   useEffect(() => {
     async function initData() {
-      // 1. Fetch live weather for IIT Bhubaneswar
-      const weather = await fetchLiveWeather(20.1484, 85.6711);
+      // 1. Fetch live weather for active start point
+      const weather = await fetchLiveWeather(startPoint.coords[0], startPoint.coords[1]);
       if (weather) {
         setLiveWeather(weather);
         setAgentSteps((prev) => [
@@ -108,18 +112,24 @@ export default function App() {
     initData();
   }, []);
 
-  // Handle map click to set Start or End point
+  // Handle map click to set Start or End point dynamically anywhere on map
   const handlePointSelected = async (type, coords) => {
     playMechanicalClick();
     if (type === 'start') {
       const newStart = {
         id: 'CUSTOM_START',
         name: `Custom Origin (${coords[0].toFixed(3)}, ${coords[1].toFixed(3)})`,
-        shortName: 'Custom Start',
+        shortName: `Origin (${coords[0].toFixed(2)}, ${coords[1].toFixed(2)})`,
         coords,
       };
       setStartPoint(newStart);
       setSettingPointType(null);
+      setDisruptionState('idle');
+      setReroutePolyline(null);
+      setActiveHazard(null);
+
+      // Refresh weather for new start coordinate
+      fetchLiveWeather(coords[0], coords[1]).then((w) => w && setLiveWeather(w));
 
       if (destinationPoint) {
         const dirData = await fetchLiveDirections(coords, destinationPoint.coords);
@@ -143,11 +153,14 @@ export default function App() {
       const newDest = {
         id: 'CUSTOM_DEST',
         name: `Custom Destination (${coords[0].toFixed(3)}, ${coords[1].toFixed(3)})`,
-        shortName: 'Custom Dest',
+        shortName: `Dest (${coords[0].toFixed(2)}, ${coords[1].toFixed(2)})`,
         coords,
       };
       setDestinationPoint(newDest);
       setSettingPointType(null);
+      setDisruptionState('idle');
+      setReroutePolyline(null);
+      setActiveHazard(null);
 
       if (startPoint) {
         const dirData = await fetchLiveDirections(startPoint.coords, coords);
@@ -176,7 +189,10 @@ export default function App() {
     setDestinationPoint(destHub);
     setReroutePolyline(null);
     setDisruptionState('idle');
+    setActiveHazard(null);
     setEmailDispatched(null);
+
+    fetchLiveWeather(startHub.coords[0], startHub.coords[1]).then((w) => w && setLiveWeather(w));
 
     const dirData = await fetchLiveDirections(startHub.coords, destHub.coords);
     if (dirData && dirData.polyline && dirData.polyline.length > 1) {
@@ -186,17 +202,19 @@ export default function App() {
         etaMinutes: Math.round(dirData.duration_min),
       });
     } else {
-      setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
-      setRouteStats({ distanceKm: 33.8, etaMinutes: 34 });
+      const fallback = generateCurvedRoute(startHub.coords, destHub.coords);
+      const dist = calculateHaversineDistanceKm(startHub.coords, destHub.coords);
+      setPrimaryPolyline(fallback);
+      setRouteStats({ distanceKm: dist, etaMinutes: Math.max(10, Math.round((dist / 45) * 60)) });
     }
 
     setAgentSteps((prev) => [
       ...prev,
       {
         timestamp: new Date().toLocaleTimeString(),
-        node: 'strategist',
+        node: 'system',
         type: 'ROUTING_UPDATE',
-        content: `Waypoints selected: [${startHub.name}] &rarr; [${destHub.name}]. Loaded live highway route.`,
+        content: `Active Freight Corridor switched: [${startHub.name}] → [${destHub.name}]. Ready for carrier mission dispatch.`,
       },
     ]);
   };
@@ -228,7 +246,7 @@ export default function App() {
     const result = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
-      currentRouteId: 'route_primary',
+      currentRouteId: graphState.current_route || 'route_primary',
       prompt: `Calculate primary cargo corridor from [${startPoint.name}] to [${destinationPoint.name}]. Check routing status.`,
     });
 
@@ -238,7 +256,8 @@ export default function App() {
 
     setGraphState((prev) => ({
       ...prev,
-      current_route: 'route_primary',
+      current_route: result.data?.final_route || 'route_primary',
+      current_route_name: `${startPoint.shortName} Express Arterial`,
       tool_status: 'nominal',
       phase: 1,
     }));
@@ -265,10 +284,15 @@ export default function App() {
     const voiceRes = await reportVoiceHazard(rawTranscript);
     const parsedData = voiceRes.parsed || {
       incident_type: 'ROAD_BLOCKAGE',
-      location: 'Khandagiri Junction NH-16',
+      location: `${startPoint.shortName} Freight Corridor`,
       description: rawTranscript,
       severity: 'CRITICAL',
     };
+
+    // 3. Dynamically place hazard on active polyline ~38% along the route
+    const dynamicHazardCoords = interpolatePolylineCoordinate(primaryPolyline, 0.38);
+    parsedData.coords = dynamicHazardCoords;
+    parsedData.progressFraction = 0.38;
 
     setActiveHazard(parsedData);
 
@@ -292,7 +316,11 @@ export default function App() {
 
   // Fallback direct trigger
   const handleTriggerDisruption = () => {
-    handleVoiceReportSubmitted("Emergency dispatch! Major multi-vehicle car accident at Khandagiri junction on NH-16, lanes are completely blocked!");
+    const isChennai = startPoint?.shortName?.includes('Chennai') || (startPoint?.coords && startPoint.coords[0] < 16);
+    const defaultMsg = isChennai
+      ? `Emergency dispatch! Major container truck collision on Chennai Port Corridor near Maduravoyal, both lanes blocked!`
+      : `Emergency dispatch! Road hazard and multi-vehicle accident between ${startPoint.shortName} and ${destinationPoint.shortName}, lanes blocked!`;
+    handleVoiceReportSubmitted(defaultMsg);
   };
 
   // Phase 2 Resolution: Autonomous Agent Reroute & Email Stakeholders
@@ -300,37 +328,21 @@ export default function App() {
     setIsProcessing(true);
     setDisruptionState('rerouting');
 
-    // Multi-tier escalation check: If Route 101 / Highway 1 is already active or reported blocked
-    const hazardStr = activeHazard ? `${activeHazard.location} ${activeHazard.description}` : '';
-    const isCurrent101 = graphState.current_route === 'route_101_express';
-    const mentions101 = /hwy 1|sh 1|highway 1|daya|canal|route 101/i.test(hazardStr);
-    const is101Blocked = isCurrent101 || mentions101 || graphState.blocked_corridors?.includes('route_101_express');
-
-    let targetRouteId = 'route_101_express';
-    let targetRouteName = 'Route 101 (Daya Canal Bypass)';
-    let bypassVia = [20.1980, 85.7950];
-    let fallbackPolyline = DEFAULT_REROUTE_CORRIDOR;
-
-    if (is101Blocked) {
-      targetRouteId = 'route_202_outer_ring';
-      targetRouteName = 'Route 202 (Pipili Outer Bypass)';
-      bypassVia = [20.1700, 85.8200];
-      fallbackPolyline = DEFAULT_TERTIARY_CORRIDOR;
-    }
-
-    const isNearBhubaneswar = startPoint.coords[1] > 85.7 && destinationPoint.coords[1] > 85.6;
-    const finalBypassVia = isNearBhubaneswar
-      ? bypassVia
-      : [
-          (startPoint.coords[0] + destinationPoint.coords[0]) / 2 + (is101Blocked ? 0.028 : 0.018),
-          (startPoint.coords[1] + destinationPoint.coords[1]) / 2 + (is101Blocked ? 0.038 : 0.024),
-        ];
+    // Dynamic orthogonal detour calculation for ANY start and destination!
+    const is101Blocked = graphState.blocked_corridors?.includes('route_101_express');
+    const detourRatio = is101Blocked ? 0.065 : 0.040;
+    const dynamicBypassVia = calculateOrthogonalBypassPoint(
+      startPoint.coords,
+      destinationPoint.coords,
+      activeHazard?.coords || null,
+      detourRatio
+    );
 
     // Query real OpenRouteService bypass road geometry
     const bypassData = await fetchLiveDirections(
       startPoint.coords,
       destinationPoint.coords,
-      finalBypassVia
+      dynamicBypassVia
     );
 
     const incidentTitle = activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock & Disruption';
@@ -339,15 +351,15 @@ export default function App() {
       : 'Driver hazard report on active corridor';
 
     const currentBlockedList = Array.from(new Set([
-      ...(graphState.blocked_corridors || ['route_99']),
-      graphState.current_route || 'route_99'
+      ...(graphState.blocked_corridors || ['route_primary']),
+      graphState.current_route || 'route_primary'
     ]));
 
     // Call orchestrator
     const response = await orchestrateRoute({
       startPoint,
       destination: destinationPoint,
-      currentRouteId: graphState.current_route || 'route_99',
+      currentRouteId: graphState.current_route || 'route_primary',
       blockedCorridors: currentBlockedList,
       disruptionType: hazardDesc,
       prompt:
@@ -355,10 +367,15 @@ export default function App() {
     });
 
     setTimeout(() => {
+      const isChennai = startPoint?.shortName?.includes('Chennai') || (startPoint?.coords && startPoint.coords[0] < 16);
+      const defaultBypassName = isChennai
+        ? 'Chennai Outer Ring Road (ORR Green Express Bypass)'
+        : `${startPoint.shortName} → ${destinationPoint.shortName} (Green Corridor Bypass)`;
+
       const backendFinal = response.data?.final_route;
-      const finalRouteId = backendFinal || targetRouteId;
+      const finalRouteId = backendFinal || 'route_101_express';
       const backendEmail = response.data?.email_dispatched;
-      const finalRouteName = backendEmail?.alternative_route || targetRouteName;
+      const finalRouteName = backendEmail?.alternative_route || defaultBypassName;
       const nextBlocked = response.data?.state?.blocked_corridors || [...currentBlockedList, finalRouteId];
 
       if (bypassData && bypassData.polyline && bypassData.polyline.length > 1) {
@@ -368,7 +385,7 @@ export default function App() {
           etaMinutes: Math.round(bypassData.duration_min),
         });
       } else {
-        const poly = fallbackPolyline || generateCurvedRoute(startPoint.coords, destinationPoint.coords, finalBypassVia);
+        const poly = generateCurvedRoute(startPoint.coords, destinationPoint.coords, dynamicBypassVia);
         const distKm = Math.round(calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords) * (is101Blocked ? 1.25 : 1.15) * 10) / 10;
         setReroutePolyline(poly);
         setRouteStats({
@@ -388,7 +405,7 @@ export default function App() {
         to: 'warehouse.manager@odisha-logistics.com, client.relations@iitbbs.ac.in',
         reason: fallbackEmailReason,
         alternative_route: finalRouteName,
-        new_eta: is101Blocked ? '+13 mins (47 mins total)' : '+7 mins (38 mins total)',
+        new_eta: is101Blocked ? '+13 mins (57 mins total)' : '+7 mins (51 mins total)',
       };
       setEmailDispatched(email);
 
@@ -416,7 +433,7 @@ export default function App() {
     clearLiveHazards();
     setReroutePolyline(null);
     setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
-    setRouteStats({ distanceKm: 33.8, etaMinutes: 34 });
+    setRouteStats({ distanceKm: 42.5, etaMinutes: 44 });
     setEmailDispatched(null);
     setAgentSteps([
       {
@@ -429,8 +446,8 @@ export default function App() {
     setGraphState({
       messages: [],
       tool_status: 'nominal',
-      current_route: 'route_99',
-      current_route_name: 'NH-16 (Route 99)',
+      current_route: 'chennai_port_arterial',
+      current_route_name: 'Chennai Port Express Arterial',
       blocked_corridors: [],
       phase: 1,
     });
@@ -454,9 +471,11 @@ export default function App() {
         <DisruptionBanner
           disruptionState={disruptionState}
           onTriggerReroute={handleAutonomousReroute}
-          disruptedRoute="NH-16 (Route 99)"
-          resolvedRoute={graphState.current_route_name || "Route 101 (Daya Canal Bypass)"}
+          disruptedRoute={`${startPoint?.shortName || 'Origin'} Primary Arterial`}
+          resolvedRoute={graphState.current_route_name || "Green Corridor Bypass"}
           activeHazard={activeHazard}
+          startPoint={startPoint}
+          destinationPoint={destinationPoint}
         />
 
         {/* Split Layout: Map (Left) / Agent Feed (Right) */}
@@ -485,6 +504,10 @@ export default function App() {
               disruptionState={disruptionState}
               distanceKm={routeStats.distanceKm}
               etaMinutes={routeStats.etaMinutes}
+              startPoint={startPoint}
+              destinationPoint={destinationPoint}
+              activeHazard={activeHazard}
+              targetBypassName={graphState.current_route_name}
             />
 
             {/* Control Panel with Voice Modal Trigger */}

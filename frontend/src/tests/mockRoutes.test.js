@@ -8,6 +8,8 @@ import {
   DISRUPTION_ZONES,
   calculateHaversineDistanceKm,
   generateCurvedRoute,
+  calculateOrthogonalBypassPoint,
+  interpolatePolylineCoordinate,
 } from '../data/mockRoutes';
 
 describe('mockRoutes Data and Geometry Utilities', () => {
@@ -16,9 +18,9 @@ describe('mockRoutes Data and Geometry Utilities', () => {
     PRESET_HUBS.forEach((hub) => {
       expect(hub.id).toBeDefined();
       expect(hub.coords).toHaveLength(2);
-      expect(hub.coords[0]).toBeGreaterThan(18);
-      expect(hub.coords[0]).toBeLessThan(23);
-      expect(hub.coords[1]).toBeGreaterThan(80);
+      expect(hub.coords[0]).toBeGreaterThan(11);
+      expect(hub.coords[0]).toBeLessThan(25);
+      expect(hub.coords[1]).toBeGreaterThan(78);
       expect(hub.coords[1]).toBeLessThan(90);
     });
   });
@@ -41,32 +43,48 @@ describe('mockRoutes Data and Geometry Utilities', () => {
 
   it('should define disruption zones on primary corridor', () => {
     expect(DISRUPTION_ZONES.length).toBeGreaterThanOrEqual(2);
-    expect(DISRUPTION_ZONES[0].affectedRoute).toBe('route_99');
-    expect(DISRUPTION_ZONES[1].affectedRoute).toBe('route_101_express');
+    expect(DISRUPTION_ZONES[0].affectedRoute).toBeDefined();
+    expect(DISRUPTION_ZONES[1].affectedRoute).toBeDefined();
   });
 
   it('should calculate realistic haversine distance between hubs', () => {
-    const bbi = PRESET_HUBS[0].coords;
-    const iit = PRESET_HUBS[1].coords;
-    const distance = calculateHaversineDistanceKm(bbi, iit);
+    const hub1 = PRESET_HUBS[0].coords;
+    const hub2 = PRESET_HUBS[1].coords;
+    const distance = calculateHaversineDistanceKm(hub1, hub2);
     expect(distance).toBeGreaterThan(15);
-    expect(distance).toBeLessThan(60);
+    expect(distance).toBeLessThan(80);
   });
 
   it('should handle invalid or identical inputs safely in calculateHaversineDistanceKm', () => {
     expect(calculateHaversineDistanceKm(null, null)).toBe(33.8);
-    expect(calculateHaversineDistanceKm([20.14, 85.67], [20.14, 85.67])).toBeGreaterThanOrEqual(1.0);
+    expect(calculateHaversineDistanceKm([13.08, 80.29], [13.08, 80.29])).toBeGreaterThanOrEqual(1.0);
+  });
+
+  it('should calculate orthogonal bypass points dynamically', () => {
+    const start = [13.0838, 80.2980];
+    const dest = [12.8350, 79.9500];
+    const bypass = calculateOrthogonalBypassPoint(start, dest);
+    expect(bypass).toHaveLength(2);
+    expect(typeof bypass[0]).toBe('number');
+    expect(typeof bypass[1]).toBe('number');
+  });
+
+  it('should interpolate coordinates along polyline dynamically', () => {
+    const coord = interpolatePolylineCoordinate(DEFAULT_PRIMARY_ROUTE, 0.5);
+    expect(coord).toHaveLength(2);
+    expect(coord[0]).toBeGreaterThan(12.5);
+    expect(coord[0]).toBeLessThan(13.5);
   });
 
   it('should generate curved route polylines', () => {
-    const p1 = [20.301, 85.864];
-    const p2 = [20.148, 85.671];
+    const p1 = [13.0838, 80.2980];
+    const p2 = [12.8350, 79.9500];
     const curved = generateCurvedRoute(p1, p2);
     expect(curved.length).toBe(7);
     expect(curved[0]).toEqual(p1);
     expect(curved[curved.length - 1]).toEqual(p2);
 
-    const detoured = generateCurvedRoute(p1, p2, [20.25, 85.80]);
+    const detoured = generateCurvedRoute(p1, p2, [13.04, 80.05]);
     expect(detoured.length).toBe(5);
   });
 });

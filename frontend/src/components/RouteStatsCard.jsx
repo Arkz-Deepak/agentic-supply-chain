@@ -5,8 +5,12 @@ import ParallaxCard from './ParallaxCard';
 export default function RouteStatsCard({
   activeRouteName = 'NH-16 Route 99',
   disruptionState = 'idle', // 'idle' | 'detected' | 'rerouting' | 'resolved'
-  distanceKm = 28,
-  etaMinutes = 38,
+  distanceKm = 33.8,
+  etaMinutes = 34,
+  startPoint = null,
+  destinationPoint = null,
+  activeHazard = null,
+  targetBypassName = null,
 }) {
   const isBlocked = disruptionState === 'detected';
   const isRerouted = disruptionState === 'resolved';
@@ -17,13 +21,35 @@ export default function RouteStatsCard({
     return h > 0 ? `${h}h ${m}m` : `${m} mins`;
   };
 
+  const statusBadge = isBlocked
+    ? (activeHazard?.incident_type ? `${activeHazard.incident_type.replace(/_/g, ' ')} HALTED` : (activeRouteName?.includes('NH-16') ? 'NH-16 HALTED' : 'CORRIDOR HALTED'))
+    : isRerouted
+    ? (activeRouteName === 'route_101_express' ? 'DAYA BYPASS ACTIVE' : (targetBypassName ? `${targetBypassName.toUpperCase()} ACTIVE` : 'GREEN BYPASS ACTIVE'))
+    : 'CORRIDOR CLEAR';
+
+  const corridorDisplayName = isRerouted
+    ? (activeRouteName === 'route_101_express' ? 'route_101_express' : (targetBypassName || 'Dynamic Green Bypass'))
+    : (activeRouteName || (startPoint ? `${startPoint.shortName} Arterial` : 'Primary Corridor'));
+
+  const corridorSubtitle = isRerouted
+    ? (activeRouteName === 'route_101_express' ? 'Daya Canal Green Link' : 'Autonomous Detour Arterial')
+    : (startPoint ? `${startPoint.shortName} Primary Link` : 'NH-16 Primary Arterial');
+
+  const riskSubtext = isBlocked
+    ? (activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock / Incident')
+    : isRerouted
+    ? (activeRouteName === 'route_101_express' ? 'Paved Canal Bypass' : 'Clear Detour Arterial')
+    : 'Optimal Roadways';
+
   return (
     <ParallaxCard className="p-3.5" maxTilt={3}>
       <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-sky-600" />
           <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-800">
-            Odisha Corridor Telemetry &bull; IIT Bhubaneswar
+            {startPoint?.shortName && destinationPoint?.shortName
+              ? `${startPoint.shortName} → ${destinationPoint.shortName} Corridor Telemetry`
+              : 'Odisha Corridor Telemetry • IIT Bhubaneswar'}
           </h3>
         </div>
         <span
@@ -35,7 +61,7 @@ export default function RouteStatsCard({
               : 'bg-sky-50 text-sky-700 border-sky-300'
           }`}
         >
-          {isBlocked ? 'NH-16 HALTED' : isRerouted ? 'DAYA BYPASS ACTIVE' : 'CORRIDOR CLEAR'}
+          {statusBadge}
         </span>
       </div>
 
@@ -47,10 +73,10 @@ export default function RouteStatsCard({
             <span>CORRIDOR</span>
           </div>
           <div className="text-xs font-bold text-slate-900 truncate">
-            {isRerouted ? 'route_101_express' : activeRouteName}
+            {corridorDisplayName}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
-            {isRerouted ? 'Daya Canal Green Link' : 'NH-16 Primary Arterial'}
+          <div className="text-[9px] text-slate-500 mt-0.5 truncate">
+            {corridorSubtitle}
           </div>
         </div>
 
@@ -63,8 +89,8 @@ export default function RouteStatsCard({
           <div className="text-xs font-bold text-slate-900">
             {isRerouted ? formatTime(etaMinutes + 7) : isBlocked ? 'HALTED' : formatTime(etaMinutes)}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
-            {isRerouted ? '+7 min detour' : isBlocked ? 'Khandagiri blocked' : 'On Schedule'}
+          <div className="text-[9px] text-slate-500 mt-0.5 truncate">
+            {isRerouted ? '+7 min detour' : isBlocked ? 'Obstruction ahead' : 'On Schedule'}
           </div>
         </div>
 
@@ -77,8 +103,8 @@ export default function RouteStatsCard({
           <div className="text-xs font-bold text-slate-900">
             {isRerouted ? `${distanceKm + 4} km` : `${distanceKm} km`}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
-            {isRerouted ? 'Via Sundarpada Link' : 'Direct via NH-16'}
+          <div className="text-[9px] text-slate-500 mt-0.5 truncate">
+            {isRerouted ? 'Detour Arterial' : 'Direct Highway'}
           </div>
         </div>
 
@@ -99,8 +125,8 @@ export default function RouteStatsCard({
           >
             {isBlocked ? '99% BLOCKED' : isRerouted ? '3.5% SAFE' : '10.2% NOMINAL'}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
-            {isBlocked ? 'Waterlog / Strike' : isRerouted ? 'Paved Canal Bypass' : 'Normal Traffic'}
+          <div className="text-[9px] text-slate-500 mt-0.5 truncate">
+            {riskSubtext}
           </div>
         </div>
       </div>

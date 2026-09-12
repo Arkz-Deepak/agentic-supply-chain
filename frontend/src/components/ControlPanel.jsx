@@ -69,30 +69,42 @@ export default function ControlPanel({
             <label className="text-[11px] font-sans font-semibold text-slate-600 flex items-center gap-1">
               <MapPin className="h-3 w-3 text-sky-600" /> Select Regional Freight Corridor:
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={() =>
                   handlePresetClick(
-                    PRESET_HUBS[0], // Bhubaneswar Depot
-                    PRESET_HUBS[1]  // IIT Bhubaneswar
+                    PRESET_HUBS[0], // Chennai Port
+                    PRESET_HUBS[1]  // Oragadam
+                  )
+                }
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-sans text-slate-800 hover:border-sky-400 hover:bg-sky-50/60 transition text-left flex items-center justify-between shadow-sm"
+              >
+                <span className="font-semibold">🚢 Chennai Port &rarr; Oragadam</span>
+                <span className="text-[10px] text-sky-600 font-bold font-mono">Port-Express</span>
+              </button>
+              <button
+                onClick={() =>
+                  handlePresetClick(
+                    PRESET_HUBS[4] || PRESET_HUBS[0], // Bhubaneswar Depot
+                    PRESET_HUBS[5] || PRESET_HUBS[1]  // IIT Bhubaneswar
                   )
                 }
                 className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-sans text-slate-800 hover:border-sky-400 hover:bg-sky-50/60 transition text-left flex items-center justify-between shadow-sm"
               >
                 <span className="font-semibold">🚚 Bhubaneswar &rarr; IIT BBS</span>
-                <span className="text-[10px] text-sky-600 font-bold font-mono">NH-16</span>
+                <span className="text-[10px] text-emerald-600 font-bold font-mono">NH-16</span>
               </button>
               <button
                 onClick={() =>
                   handlePresetClick(
-                    PRESET_HUBS[2], // Paradip Port
-                    PRESET_HUBS[1]  // IIT Bhubaneswar
+                    PRESET_HUBS[6] || PRESET_HUBS[0], // Paradip Port
+                    PRESET_HUBS[5] || PRESET_HUBS[1]  // IIT Bhubaneswar
                   )
                 }
                 className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-sans text-slate-800 hover:border-sky-400 hover:bg-sky-50/60 transition text-left flex items-center justify-between shadow-sm"
               >
                 <span className="font-semibold">⚓ Paradip Port &rarr; IIT BBS</span>
-                <span className="text-[10px] text-purple-600 font-bold font-mono">Port Link</span>
+                <span className="text-[10px] text-purple-600 font-bold font-mono">Maritime</span>
               </button>
             </div>
           </div>
@@ -171,6 +183,8 @@ export default function ControlPanel({
         onClose={() => setIsVoiceModalOpen(false)}
         onSubmitVoiceReport={handleVoiceSubmit}
         isProcessing={isProcessing}
+        startPoint={startPoint}
+        destinationPoint={destinationPoint}
       />
     </>
   );

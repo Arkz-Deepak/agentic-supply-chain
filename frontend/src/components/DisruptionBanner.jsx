@@ -9,6 +9,8 @@ export default function DisruptionBanner({
   disruptedRoute = 'NH-16 (Route 99)',
   resolvedRoute = 'Route 101 (Daya Canal Bypass)',
   activeHazard = null,
+  startPoint = null,
+  destinationPoint = null,
 }) {
   if (disruptionState === 'idle') return null;
 
@@ -16,8 +18,9 @@ export default function DisruptionBanner({
     ? activeHazard.incident_type.replace(/_/g, ' ')
     : 'WATERLOGGING + STRIKE';
 
-  const hazardLocation = activeHazard?.location || 'NH-16 Khandagiri';
+  const hazardLocation = activeHazard?.location || 'Active Freight Sector';
   const hazardDesc = activeHazard?.description || 'Active road blockage on freight corridor';
+  const destName = destinationPoint?.shortName || 'Destination Hub';
 
   return (
     <AnimatePresence>
@@ -50,7 +53,7 @@ export default function DisruptionBanner({
                     </span>
                   </div>
                   <h3 className="text-sm md:text-base font-bold text-slate-900 tracking-tight mt-0.5">
-                    Carrier TRK-8821 Halted on <span className="font-mono text-rose-700 underline">{disruptedRoute}</span> en route to IIT Bhubaneswar
+                    Carrier TRK-8821 Halted on <span className="font-mono text-rose-700 underline">{disruptedRoute}</span> en route to {destName}
                   </h3>
                   <p className="text-xs text-slate-600">
                     Carrier telemetry triggered emergency brake due to {incidentBadge.toLowerCase()}: &ldquo;{hazardDesc}&rdquo;. Strategist Agent recommends immediate recalculation via bypass corridor.
@@ -99,7 +102,7 @@ export default function DisruptionBanner({
                     Strategist Node Bypassing {hazardLocation} ({incidentBadge})...
                   </h3>
                   <p className="text-xs text-slate-600 font-mono">
-                    Querying OpenRouteService &bull; Computing green bypass corridor &bull; Direct access to IIT Bhubaneswar South Gate
+                    Querying OpenRouteService &bull; Computing green bypass corridor &bull; Direct access to {destName}
                   </p>
                 </div>
               </div>

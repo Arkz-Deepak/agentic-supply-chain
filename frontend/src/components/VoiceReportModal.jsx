@@ -14,6 +14,8 @@ export default function VoiceReportModal({
   onClose,
   onSubmitVoiceReport,
   isProcessing = false,
+  startPoint = null,
+  destinationPoint = null,
 }) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -21,11 +23,24 @@ export default function VoiceReportModal({
   const [statusMessage, setStatusMessage] = useState('Click microphone to speak natural language report');
   const recognitionRef = useRef(null);
 
-  const samplePhrases = [
-    "Emergency dispatch! Major multi-vehicle car accident at Khandagiri junction on NH-16, both lanes completely blocked!",
-    "Alert command! Heavy storm knocked down a massive banyan tree and wood logs across the highway near Khandagiri, road is impassable.",
-    "Critical update: Severe flash flood and 4-foot waterlogging at Tamando junction NH-16, trucks are submerged.",
-    "Roadblock alert: Transport union strike and dharna on the highway, all freight traffic stopped.",
+  const routeLabel = startPoint?.shortName && destinationPoint?.shortName
+    ? `${startPoint.shortName} → ${destinationPoint.shortName}`
+    : 'Active Freight Corridor';
+
+  const isChennai = startPoint?.shortName?.includes('Chennai') || (startPoint?.coords && startPoint.coords[0] < 16);
+
+  const samplePhrases = isChennai ? [
+    `Emergency dispatch! Major multi-vehicle container collision on Chennai Port Corridor near Maduravoyal, both lanes blocked!`,
+    `Alert command! Fallen heavy electrical poles and storm debris across the freight highway heading to ${destinationPoint?.shortName || 'Oragadam'}, trucks halted!`,
+    `Critical update: Flash monsoon flood and 3-foot waterlogging near Porur junction, highway impassable!`,
+    `Roadblock alert: Port container transport strike and roadblock near bypass arterial, all freight stopped!`,
+    `Chemical hazard warning: Overturned fuel tanker truck on the arterial expressway, emergency detour required!`,
+  ] : [
+    `Emergency dispatch! Major multi-vehicle collision on ${routeLabel}, lanes are completely blocked!`,
+    `Alert command! Massive fallen banyan tree and wood logs blocking the freight highway, road is impassable!`,
+    `Critical update: Severe flash flood and 4-foot waterlogging on ${routeLabel}, trucks are submerged!`,
+    `Roadblock alert: Transport union protest and highway dharna on ${routeLabel}, all freight traffic stopped!`,
+    `Hazmat alert: Overturned commercial transport vehicle and structural road damage on the arterial route!`,
   ];
 
   useEffect(() => {
