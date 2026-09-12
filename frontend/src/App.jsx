@@ -35,14 +35,14 @@ export default function App() {
   // Hubs & Routing Coordinates (Defaults to Chennai Port -> Oragadam Industrial Corridor)
   const [startPoint, setStartPoint] = useState(PRESET_HUBS[0]);
   const [destinationPoint, setDestinationPoint] = useState(PRESET_HUBS[1]);
-  const [primaryPolyline, setPrimaryPolyline] = useState(DEFAULT_PRIMARY_ROUTE);
+  const [primaryPolyline, setPrimaryPolyline] = useState(null); // Initialized to null: Only Point A and Point B shown until Phase 1 button is pressed!
   const [reroutePolyline, setReroutePolyline] = useState(null);
 
   // Live real data state
   const [liveWeather, setLiveWeather] = useState(null);
   const [routeStats, setRouteStats] = useState({
-    distanceKm: 42.5,
-    etaMinutes: 44,
+    distanceKm: 0,
+    etaMinutes: 0,
   });
 
   // Map interactive point placement state
@@ -57,11 +57,11 @@ export default function App() {
   // Agent activity logs
   const [agentSteps, setAgentSteps] = useState([
     {
-      timestamp: '19:45:00',
+      timestamp: new Date().toLocaleTimeString(),
       node: 'system',
       type: 'INFO',
       content:
-        'LogiPulse Autonomous Command Center online for Tech Zephyr 4.0 (IIT BBS). Dedicated ports active (UI: 5180, API: 8010). Live Voice Webhook & Gemini NLP ready.',
+        'LogiPulse Command Center online. Origin Point A (Chennai Port) & Destination Point B (Oragadam) pinned. Press "Phase 1: Calculate Route" to create the freight path.',
     },
   ]);
 
@@ -71,7 +71,7 @@ export default function App() {
       {
         role: 'system',
         content:
-          'LangGraph Orchestrator initialized with Gemini 2.5 Flash. 4 tools bound: OpenRouteService, OpenWeatherMap, Crowdsourced Traffic, Stakeholder Email.',
+          'LangGraph Orchestrator initialized with Gemini Flash. 4 tools bound: OpenRouteService, OpenWeatherMap, Crowdsourced Traffic, Stakeholder Email.',
       },
     ],
     tool_status: 'nominal',
@@ -81,10 +81,10 @@ export default function App() {
     phase: 1,
   });
 
-  // Fetch real weather and initial route on mount
+  // Fetch real weather for origin on mount (route generation is triggered ONLY via Phase 1 button)
   useEffect(() => {
     async function initData() {
-      // 1. Fetch live weather for active start point
+      // Fetch live weather for active start point
       const weather = await fetchLiveWeather(startPoint.coords[0], startPoint.coords[1]);
       if (weather) {
         setLiveWeather(weather);
@@ -97,16 +97,6 @@ export default function App() {
             content: `Live OpenWeatherMap: ${weather.location} | Temp: ${weather.temp_c}°C, Humidity: ${weather.humidity}%, "${weather.weather}".`,
           },
         ]);
-      }
-
-      // 2. Fetch real OpenRouteService highway driving polyline
-      const dirData = await fetchLiveDirections(startPoint.coords, destinationPoint.coords);
-      if (dirData && dirData.polyline && dirData.polyline.length > 5) {
-        setPrimaryPolyline(dirData.polyline);
-        setRouteStats({
-          distanceKm: dirData.distance_km,
-          etaMinutes: Math.round(dirData.duration_min),
-        });
       }
     }
     initData();
@@ -125,30 +115,23 @@ export default function App() {
       setStartPoint(newStart);
       setSettingPointType(null);
       setDisruptionState('idle');
+      setPrimaryPolyline(null); // Clear route: awaits Phase 1 button
       setReroutePolyline(null);
       setActiveHazard(null);
+      setRouteStats({ distanceKm: 0, etaMinutes: 0 });
 
       // Refresh weather for new start coordinate
       fetchLiveWeather(coords[0], coords[1]).then((w) => w && setLiveWeather(w));
 
-      if (destinationPoint) {
-        const dirData = await fetchLiveDirections(coords, destinationPoint.coords);
-        if (dirData && dirData.polyline && dirData.polyline.length > 1) {
-          setPrimaryPolyline(dirData.polyline);
-          setRouteStats({
-            distanceKm: dirData.distance_km,
-            etaMinutes: Math.round(dirData.duration_min),
-          });
-        } else {
-          const fallback = generateCurvedRoute(coords, destinationPoint.coords);
-          const dist = calculateHaversineDistanceKm(coords, destinationPoint.coords);
-          setPrimaryPolyline(fallback);
-          setRouteStats({
-            distanceKm: dist,
-            etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
-          });
-        }
-      }
+      setAgentSteps((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          node: 'system',
+          type: 'INFO',
+          content: `Origin (Point A) set to [${coords[0].toFixed(3)}, ${coords[1].toFixed(3)}]. Press "Phase 1: Calculate Route" to create the path.`,
+        },
+      ]);
     } else if (type === 'dest') {
       const newDest = {
         id: 'CUSTOM_DEST',
@@ -159,27 +142,20 @@ export default function App() {
       setDestinationPoint(newDest);
       setSettingPointType(null);
       setDisruptionState('idle');
+      setPrimaryPolyline(null); // Clear route: awaits Phase 1 button
       setReroutePolyline(null);
       setActiveHazard(null);
+      setRouteStats({ distanceKm: 0, etaMinutes: 0 });
 
-      if (startPoint) {
-        const dirData = await fetchLiveDirections(startPoint.coords, coords);
-        if (dirData && dirData.polyline && dirData.polyline.length > 1) {
-          setPrimaryPolyline(dirData.polyline);
-          setRouteStats({
-            distanceKm: dirData.distance_km,
-            etaMinutes: Math.round(dirData.duration_min),
-          });
-        } else {
-          const fallback = generateCurvedRoute(startPoint.coords, coords);
-          const dist = calculateHaversineDistanceKm(startPoint.coords, coords);
-          setPrimaryPolyline(fallback);
-          setRouteStats({
-            distanceKm: dist,
-            etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
-          });
-        }
-      }
+      setAgentSteps((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          node: 'system',
+          type: 'INFO',
+          content: `Destination (Point B) set to [${coords[0].toFixed(3)}, ${coords[1].toFixed(3)}]. Press "Phase 1: Calculate Route" to create the path.`,
+        },
+      ]);
     }
   };
 
@@ -187,26 +163,14 @@ export default function App() {
   const handleSelectPreset = async (startHub, destHub) => {
     setStartPoint(startHub);
     setDestinationPoint(destHub);
+    setPrimaryPolyline(null); // Clear route: awaits Phase 1 button
     setReroutePolyline(null);
     setDisruptionState('idle');
     setActiveHazard(null);
     setEmailDispatched(null);
+    setRouteStats({ distanceKm: 0, etaMinutes: 0 });
 
     fetchLiveWeather(startHub.coords[0], startHub.coords[1]).then((w) => w && setLiveWeather(w));
-
-    const dirData = await fetchLiveDirections(startHub.coords, destHub.coords);
-    if (dirData && dirData.polyline && dirData.polyline.length > 1) {
-      setPrimaryPolyline(dirData.polyline);
-      setRouteStats({
-        distanceKm: dirData.distance_km,
-        etaMinutes: Math.round(dirData.duration_min),
-      });
-    } else {
-      const fallback = generateCurvedRoute(startHub.coords, destHub.coords);
-      const dist = calculateHaversineDistanceKm(startHub.coords, destHub.coords);
-      setPrimaryPolyline(fallback);
-      setRouteStats({ distanceKm: dist, etaMinutes: Math.max(10, Math.round((dist / 45) * 60)) });
-    }
 
     setAgentSteps((prev) => [
       ...prev,
@@ -214,7 +178,7 @@ export default function App() {
         timestamp: new Date().toLocaleTimeString(),
         node: 'system',
         type: 'ROUTING_UPDATE',
-        content: `Active Freight Corridor switched: [${startHub.name}] → [${destHub.name}]. Ready for carrier mission dispatch.`,
+        content: `Active Freight Corridor selected: [${startHub.name}] → [${destHub.name}]. Point A & Point B pinned. Press "Phase 1: Calculate Route" to create the route.`,
       },
     ]);
   };
@@ -280,6 +244,27 @@ export default function App() {
     };
     setAgentSteps((prev) => [...prev, voiceStep]);
 
+    // Ensure active primary polyline exists if user submitted report directly
+    let activePoly = primaryPolyline;
+    if (!activePoly || activePoly.length < 2) {
+      const dirData = await fetchLiveDirections(startPoint.coords, destinationPoint.coords);
+      if (dirData && dirData.polyline && dirData.polyline.length > 1) {
+        activePoly = dirData.polyline;
+        setRouteStats({
+          distanceKm: dirData.distance_km,
+          etaMinutes: Math.round(dirData.duration_min),
+        });
+      } else {
+        activePoly = generateCurvedRoute(startPoint.coords, destinationPoint.coords);
+        const dist = calculateHaversineDistanceKm(startPoint.coords, destinationPoint.coords);
+        setRouteStats({
+          distanceKm: dist,
+          etaMinutes: Math.max(5, Math.round((dist / 45) * 60)),
+        });
+      }
+      setPrimaryPolyline(activePoly);
+    }
+
     // 2. Call backend Voice NLP endpoint
     const voiceRes = await reportVoiceHazard(rawTranscript);
     const parsedData = voiceRes.parsed || {
@@ -290,7 +275,7 @@ export default function App() {
     };
 
     // 3. Dynamically place hazard on active polyline ~38% along the route
-    const dynamicHazardCoords = interpolatePolylineCoordinate(primaryPolyline, 0.38);
+    const dynamicHazardCoords = interpolatePolylineCoordinate(activePoly, 0.38);
     parsedData.coords = dynamicHazardCoords;
     parsedData.progressFraction = 0.38;
 
@@ -432,15 +417,15 @@ export default function App() {
     setActiveHazard(null);
     clearLiveHazards();
     setReroutePolyline(null);
-    setPrimaryPolyline(DEFAULT_PRIMARY_ROUTE);
-    setRouteStats({ distanceKm: 42.5, etaMinutes: 44 });
+    setPrimaryPolyline(null); // Clear route: awaits Phase 1 button
+    setRouteStats({ distanceKm: 0, etaMinutes: 0 });
     setEmailDispatched(null);
     setAgentSteps([
       {
         timestamp: new Date().toLocaleTimeString(),
         node: 'system',
         type: 'INFO',
-        content: 'System telemetry reset. Corridor cleared for new dispatch mission.',
+        content: 'System telemetry reset. Point A (Origin) & Point B (Destination) pinned. Press "Phase 1: Calculate Route" to create the path.',
       },
     ]);
     setGraphState({
@@ -508,6 +493,7 @@ export default function App() {
               destinationPoint={destinationPoint}
               activeHazard={activeHazard}
               targetBypassName={graphState.current_route_name}
+              hasActiveRoute={Boolean(primaryPolyline && primaryPolyline.length > 1)}
             />
 
             {/* Control Panel with Voice Modal Trigger */}
@@ -522,6 +508,7 @@ export default function App() {
               destinationPoint={destinationPoint}
               onSelectPreset={handleSelectPreset}
               onVoiceReportSubmitted={handleVoiceReportSubmitted}
+              hasActiveRoute={Boolean(primaryPolyline && primaryPolyline.length > 1)}
             />
           </div>
 

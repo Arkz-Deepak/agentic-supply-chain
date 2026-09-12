@@ -212,7 +212,10 @@ export default function MapView({
     if (disruptionState === 'resolved' && reroutePolyline && reroutePolyline.length > 1) {
       return reroutePolyline;
     }
-    return primaryPolyline;
+    if (primaryPolyline && primaryPolyline.length > 1) {
+      return primaryPolyline;
+    }
+    return null;
   }, [disruptionState, reroutePolyline, primaryPolyline]);
 
   // Animated truck state & direct marker ref for jitter-free 60fps tracking
@@ -226,12 +229,17 @@ export default function MapView({
   useEffect(() => {
     if (activePath && activePath.length > 0) {
       setTruckPos(activePath[0]);
+    } else {
+      setTruckPos(null);
     }
   }, [activePath]);
 
   // Smooth, Realistic GPS Animation Loop along active road polyline
   useEffect(() => {
-    if (!activePath || activePath.length < 2) return;
+    if (!activePath || activePath.length < 2) {
+      setTruckPos(null);
+      return;
+    }
 
     let lastTime = performance.now();
 
@@ -338,14 +346,23 @@ export default function MapView({
 
         {/* Tactical Route Legend in White & Sky Blue */}
         <div className="hidden sm:flex items-center gap-3 pointer-events-auto bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-sans shadow-md">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-4 rounded bg-sky-500 inline-block shadow-sm"></span>
-            <span className="text-slate-700 font-medium">
-              {startPoint?.shortName && destinationPoint?.shortName
-                ? `${startPoint.shortName} → ${destinationPoint.shortName}`
-                : 'Primary Freight Route'}
-            </span>
-          </div>
+          {primaryPolyline && primaryPolyline.length > 1 ? (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-4 rounded bg-sky-500 inline-block shadow-sm"></span>
+              <span className="text-slate-700 font-medium">
+                {startPoint?.shortName && destinationPoint?.shortName
+                  ? `${startPoint.shortName} → ${destinationPoint.shortName}`
+                  : 'Primary Freight Route'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping inline-block"></span>
+              <span className="text-slate-700 font-medium font-sans">
+                Point A ({startPoint?.shortName || 'Origin'}) &bull; Point B ({destinationPoint?.shortName || 'Destination'}) Ready
+              </span>
+            </div>
+          )}
           {disruptionState !== 'idle' && (
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-4 rounded bg-emerald-500 inline-block shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
@@ -535,12 +552,34 @@ export default function MapView({
 
         <RouteBoundsFitter
           points={
-            disruptionState === 'resolved' && reroutePolyline
+            disruptionState === 'resolved' && reroutePolyline && reroutePolyline.length > 1
               ? reroutePolyline
-              : primaryPolyline
+              : primaryPolyline && primaryPolyline.length > 1
+              ? primaryPolyline
+              : startPoint && destinationPoint
+              ? [startPoint.coords, destinationPoint.coords]
+              : null
           }
         />
       </MapContainer>
+
+      {/* Floating Callout when awaiting Phase 1 route calculation */}
+      {(!primaryPolyline || primaryPolyline.length < 2) && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+          <div className="bg-white/95 backdrop-blur-md border border-sky-300 shadow-xl px-4 py-2 rounded-full flex items-center gap-2.5 text-xs font-sans text-slate-800">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500"></span>
+            </span>
+            <span className="font-semibold text-sky-900">
+              Corridor Standby:
+            </span>
+            <span className="text-slate-600">
+              Point A &amp; Point B pinned. Click <strong className="text-sky-700">"Phase 1: Calculate Route"</strong> below to generate path.
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

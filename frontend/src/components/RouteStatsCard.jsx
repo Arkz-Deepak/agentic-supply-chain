@@ -11,6 +11,7 @@ export default function RouteStatsCard({
   destinationPoint = null,
   activeHazard = null,
   targetBypassName = null,
+  hasActiveRoute = true,
 }) {
   const isBlocked = disruptionState === 'detected';
   const isRerouted = disruptionState === 'resolved';
@@ -21,21 +22,29 @@ export default function RouteStatsCard({
     return h > 0 ? `${h}h ${m}m` : `${m} mins`;
   };
 
-  const statusBadge = isBlocked
+  const statusBadge = !hasActiveRoute
+    ? 'AWAITING PHASE 1'
+    : isBlocked
     ? (activeHazard?.incident_type ? `${activeHazard.incident_type.replace(/_/g, ' ')} HALTED` : (activeRouteName?.includes('NH-16') ? 'NH-16 HALTED' : 'CORRIDOR HALTED'))
     : isRerouted
     ? (activeRouteName === 'route_101_express' ? 'DAYA BYPASS ACTIVE' : (targetBypassName ? `${targetBypassName.toUpperCase()} ACTIVE` : 'GREEN BYPASS ACTIVE'))
     : 'CORRIDOR CLEAR';
 
-  const corridorDisplayName = isRerouted
+  const corridorDisplayName = !hasActiveRoute
+    ? (startPoint?.shortName && destinationPoint?.shortName ? `${startPoint.shortName} → ${destinationPoint.shortName}` : 'Standby Corridor')
+    : isRerouted
     ? (activeRouteName === 'route_101_express' ? 'route_101_express' : (targetBypassName || 'Dynamic Green Bypass'))
     : (activeRouteName || (startPoint ? `${startPoint.shortName} Arterial` : 'Primary Corridor'));
 
-  const corridorSubtitle = isRerouted
+  const corridorSubtitle = !hasActiveRoute
+    ? 'Awaiting Phase 1 Dispatch'
+    : isRerouted
     ? (activeRouteName === 'route_101_express' ? 'Daya Canal Green Link' : 'Autonomous Detour Arterial')
     : (startPoint ? `${startPoint.shortName} Primary Link` : 'NH-16 Primary Arterial');
 
-  const riskSubtext = isBlocked
+  const riskSubtext = !hasActiveRoute
+    ? 'Ready for Phase 1'
+    : isBlocked
     ? (activeHazard?.incident_type ? activeHazard.incident_type.replace(/_/g, ' ') : 'Roadblock / Incident')
     : isRerouted
     ? (activeRouteName === 'route_101_express' ? 'Paved Canal Bypass' : 'Clear Detour Arterial')
@@ -54,7 +63,9 @@ export default function RouteStatsCard({
         </div>
         <span
           className={`text-[10px] font-mono px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border shadow-sm ${
-            isBlocked
+            !hasActiveRoute
+              ? 'bg-amber-50 text-amber-700 border-amber-300'
+              : isBlocked
               ? 'bg-rose-50 text-rose-700 border-rose-300'
               : isRerouted
               ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
@@ -87,10 +98,10 @@ export default function RouteStatsCard({
             <span>EST. TIME</span>
           </div>
           <div className="text-xs font-bold text-slate-900">
-            {isRerouted ? formatTime(etaMinutes + 7) : isBlocked ? 'HALTED' : formatTime(etaMinutes)}
+            {!hasActiveRoute ? '--' : isRerouted ? formatTime(etaMinutes + 7) : isBlocked ? 'HALTED' : formatTime(etaMinutes)}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5 truncate">
-            {isRerouted ? '+7 min detour' : isBlocked ? 'Obstruction ahead' : 'On Schedule'}
+            {!hasActiveRoute ? 'Awaiting Phase 1' : isRerouted ? '+7 min detour' : isBlocked ? 'Obstruction ahead' : 'On Schedule'}
           </div>
         </div>
 
@@ -101,10 +112,10 @@ export default function RouteStatsCard({
             <span>DISTANCE</span>
           </div>
           <div className="text-xs font-bold text-slate-900">
-            {isRerouted ? `${distanceKm + 4} km` : `${distanceKm} km`}
+            {!hasActiveRoute ? '--' : isRerouted ? `${distanceKm + 4} km` : `${distanceKm} km`}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5 truncate">
-            {isRerouted ? 'Detour Arterial' : 'Direct Highway'}
+            {!hasActiveRoute ? 'Ready to Compute' : isRerouted ? 'Detour Arterial' : 'Direct Highway'}
           </div>
         </div>
 
@@ -113,17 +124,17 @@ export default function RouteStatsCard({
           <div className="flex items-center gap-1.5 text-slate-500 text-[10px] mb-0.5">
             <ShieldAlert
               className={`h-3 w-3 ${
-                isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-slate-500'
+                !hasActiveRoute ? 'text-amber-500' : isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-slate-500'
               }`}
             />
             <span>RISK INDEX</span>
           </div>
           <div
             className={`text-xs font-bold ${
-              isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-sky-700'
+              !hasActiveRoute ? 'text-amber-600' : isBlocked ? 'text-rose-600' : isRerouted ? 'text-emerald-600' : 'text-sky-700'
             }`}
           >
-            {isBlocked ? '99% BLOCKED' : isRerouted ? '3.5% SAFE' : '10.2% NOMINAL'}
+            {!hasActiveRoute ? 'STANDBY' : isBlocked ? '99% BLOCKED' : isRerouted ? '3.5% SAFE' : '10.2% NOMINAL'}
           </div>
           <div className="text-[9px] text-slate-500 mt-0.5 truncate">
             {riskSubtext}

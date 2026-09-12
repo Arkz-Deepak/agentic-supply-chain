@@ -25,6 +25,7 @@ export default function ControlPanel({
   destinationPoint,
   onSelectPreset,
   onVoiceReportSubmitted,
+  hasActiveRoute = false,
 }) {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
@@ -120,26 +121,33 @@ export default function ControlPanel({
                 playMechanicalClick();
                 onComputeRoute();
               }}
-              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 p-2.5 text-xs font-sans font-bold text-white shadow-md hover:brightness-105 transition disabled:opacity-50"
+              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-sans font-bold text-white shadow-md hover:brightness-105 transition disabled:opacity-50 ${
+                !hasActiveRoute
+                  ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 ring-2 ring-sky-400/70 shadow-[0_0_18px_rgba(2,132,199,0.4)] animate-pulse'
+                  : 'bg-gradient-to-r from-sky-500 to-blue-600'
+              }`}
             >
               <Navigation2 className="h-4 w-4 fill-current" />
-              <span>Phase 1: Calculate Route</span>
+              <span>{hasActiveRoute ? 'Phase 1: Calculate Route (Recalculate)' : 'Phase 1: Calculate Route'}</span>
             </motion.button>
 
             {/* Live Voice Microphone Disruption Button */}
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={isProcessing || disruptionState === 'detected'}
+              whileHover={hasActiveRoute ? { scale: 1.02 } : {}}
+              whileTap={hasActiveRoute ? { scale: 0.98 } : {}}
+              disabled={isProcessing || disruptionState === 'detected' || !hasActiveRoute}
               onClick={handleOpenVoiceModal}
-              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-sans font-bold transition shadow-md disabled:opacity-50 ${
-                disruptionState === 'detected'
+              title={!hasActiveRoute ? 'Create a route with Phase 1 first' : 'Speak driver voice report'}
+              className={`flex items-center justify-center gap-2 rounded-xl p-2.5 text-xs font-sans font-bold transition shadow-md ${
+                !hasActiveRoute
+                  ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-60'
+                  : disruptionState === 'detected'
                   ? 'bg-rose-100 text-rose-800 border border-rose-300'
                   : 'bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white hover:brightness-105'
               }`}
             >
-              <Mic className="h-4 w-4 animate-pulse" />
-              <span>Phase 2: Speak Driver Report 🎙️</span>
+              <Mic className={`h-4 w-4 ${hasActiveRoute ? 'animate-pulse' : ''}`} />
+              <span>{hasActiveRoute ? 'Phase 2: Speak Driver Report 🎙️' : 'Phase 2: Awaiting Phase 1 🎙️'}</span>
             </motion.button>
           </div>
 
